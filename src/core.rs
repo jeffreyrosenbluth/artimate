@@ -16,25 +16,49 @@ impl Config {
     pub fn new(width: u32, height: u32) -> Self {
         Self { width, height }
     }
+
+    pub fn wh(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+
+    pub fn wh_f32(&self) -> (f32, f32) {
+        (self.width as f32, self.height as f32)
+    }
 }
 
 pub struct App<M> {
     pub model: M,
     pub config: Config,
-    pub update: fn(M) -> M,
-    pub view: fn(&M, f32) -> Vec<u8>,
+    pub update: fn(&App<M>, M) -> M,
+    pub draw: fn(&App<M>, &M) -> Vec<u8>,
+    pub time: f32,
+    pub window_title: String,
 }
 
 impl<M> App<M>
 where
     M: Clone,
 {
-    pub fn new(model: M, config: Config, update: fn(M) -> M, view: fn(&M, f32) -> Vec<u8>) -> Self {
+    pub fn new(
+        model: M,
+        config: Config,
+        update: fn(&App<M>, M) -> M,
+        draw: fn(&App<M>, &M) -> Vec<u8>,
+    ) -> Self {
         Self {
             model,
             config,
             update,
-            view,
+            draw,
+            time: 0.0,
+            window_title: "Artimate".to_string(),
+        }
+    }
+
+    pub fn set_title(self, title: &str) -> Self {
+        Self {
+            window_title: title.to_string(),
+            ..self
         }
     }
 
@@ -46,7 +70,7 @@ where
         let window = {
             let size = LogicalSize::new(width as f64, height as f64);
             WindowBuilder::new()
-                .with_title("Hello tiny-skia")
+                .with_title(&self.window_title)
                 .with_inner_size(size)
                 .with_min_inner_size(size)
                 .build(&event_loop)
@@ -65,31 +89,28 @@ where
 
         let res = event_loop.run(|event, elwt| {
             // Draw the current frame
-            self.model = (self.update)(self.model.clone());
+            self.model = (self.update)(&self, self.model.clone());
             if let Event::WindowEvent {
                 event: WindowEvent::RedrawRequested,
                 ..
             } = event
             {
-                pixels.frame_mut().copy_from_slice(
-                    (self.view)(&self.model, now.elapsed().as_secs_f32()).as_ref(),
-                );
+                self.time = now.elapsed().as_secs_f32();
+                pixels
+                    .frame_mut()
+                    .copy_from_slice((self.draw)(&self, &self.model).as_ref());
                 if let Err(_err) = pixels.render() {
                     // log_error("pixels.render", err);
                     elwt.exit();
                     return;
                 }
             }
-
             // Handle input events
             if input.update(&event) {
-                // Close events
                 if input.key_pressed(KeyCode::Escape) || input.close_requested() {
                     elwt.exit();
                     return;
                 }
-
-                // Resize the window
                 if let Some(size) = input.window_resized() {
                     if let Err(_err) = pixels.resize_surface(size.width, size.height) {
                         // log_error("pixels.resize_surface", err);
@@ -97,9 +118,7 @@ where
                         return;
                     }
                 }
-
-                // Update internal state and request a redraw
-                self.model = (self.update)(self.model.clone());
+                self.model = (self.update)(&self, self.model.clone());
                 window.request_redraw();
             }
         });
