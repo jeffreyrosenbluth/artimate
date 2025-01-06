@@ -34,6 +34,7 @@ pub struct App<M> {
     pub draw: fn(&App<M>, &M) -> Vec<u8>,
     pub time: f32,
     pub window_title: String,
+    pub frame_count: u32,
 }
 
 impl<M> App<M>
@@ -53,6 +54,7 @@ where
             draw,
             time: 0.0,
             window_title: "Artimate".to_string(),
+            frame_count: 0,
         }
     }
 
@@ -89,7 +91,6 @@ where
         let now = Instant::now();
 
         let res = event_loop.run(|event, elwt| {
-            // Draw the current frame
             self.model = (self.update)(&self, self.model.clone());
             if let Event::WindowEvent {
                 event: WindowEvent::RedrawRequested,
@@ -101,7 +102,6 @@ where
                     .frame_mut()
                     .copy_from_slice((self.draw)(&self, &self.model).as_ref());
                 if let Err(_err) = pixels.render() {
-                    // log_error("pixels.render", err);
                     elwt.exit();
                     return;
                 }
@@ -114,15 +114,24 @@ where
                 }
                 if let Some(size) = input.window_resized() {
                     if let Err(_err) = pixels.resize_surface(size.width, size.height) {
-                        // log_error("pixels.resize_surface", err);
                         elwt.exit();
                         return;
                     }
                 }
+                self.frame_count += 1;
                 self.model = (self.update)(&self, self.model.clone());
                 window.request_redraw();
             }
         });
+
+        println!();
+        println!(
+            "Average FPS: {}",
+            self.frame_count as f32 / now.elapsed().as_secs_f32(),
+        );
+        println!("Frame count: {}", self.frame_count,);
+        println!("Elapsed time: {} seconds", now.elapsed().as_secs_f32(),);
+
         res.map_err(|e| Error::UserDefined(Box::new(e)))
     }
 }
