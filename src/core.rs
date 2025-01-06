@@ -1,4 +1,5 @@
-use pixels::{Error, Pixels, SurfaceTexture};
+pub use pixels::Error;
+use pixels::{Pixels, SurfaceTexture};
 use std::time::Instant;
 use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};

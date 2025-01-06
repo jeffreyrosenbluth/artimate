@@ -1,5 +1,4 @@
-use artimate::core::{App, Config};
-use pixels::Error;
+use artimate::core::{App, Config, Error};
 use tiny_skia::*;
 
 #[derive(Clone)]
