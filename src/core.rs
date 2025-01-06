@@ -1,12 +1,14 @@
 pub use pixels::Error;
 use pixels::{Pixels, SurfaceTexture};
 use std::time::Instant;
-use winit::dpi::LogicalSize;
-use winit::event::{Event, WindowEvent};
-use winit::event_loop::EventLoop;
-use winit::keyboard::KeyCode;
-use winit::window::WindowBuilder;
-use winit_input_helper::WinitInputHelper;
+use winit::{
+    application::ApplicationHandler,
+    dpi::LogicalSize,
+    event::WindowEvent,
+    event_loop::{ControlFlow, EventLoop},
+    keyboard::{Key, NamedKey},
+    window::{Window, WindowId},
+};
 
 pub struct Config {
     pub width: u32,
@@ -27,14 +29,22 @@ impl Config {
     }
 }
 
-pub struct App<M> {
+impl Default for Config {
+    fn default() -> Self {
+        Self::new(1080, 700)
+    }
+}
+
+pub struct App<M = ()> {
     pub model: M,
     pub config: Config,
     pub update: fn(&App<M>, M) -> M,
     pub draw: fn(&App<M>, &M) -> Vec<u8>,
     pub time: f32,
+    pub start_time: Instant,
     pub window_title: String,
     pub frame_count: u32,
+    window: Option<Window>,
 }
 
 impl<M> App<M>
@@ -55,6 +65,8 @@ where
             time: 0.0,
             window_title: "Artimate".to_string(),
             frame_count: 0,
+            window: None,
+            start_time: Instant::now(),
         }
     }
 
@@ -66,63 +78,10 @@ where
     }
 
     pub fn run(&mut self) -> Result<(), Error> {
-        let width = self.config.width;
-        let height = self.config.height;
         let event_loop = EventLoop::new().unwrap();
-        let mut input = WinitInputHelper::new();
-        let window = {
-            let size = LogicalSize::new(width as f64, height as f64);
-            WindowBuilder::new()
-                .with_title(&self.window_title)
-                .with_inner_size(size)
-                .with_min_inner_size(size)
-                .build(&event_loop)
-                .unwrap()
-        };
-
-        let mut pixels = {
-            let window_size = window.inner_size();
-            let surface_texture =
-                SurfaceTexture::new(window_size.width, window_size.height, &window);
-
-            Pixels::new(width, height, surface_texture)?
-        };
-
+        event_loop.set_control_flow(ControlFlow::Poll);
         let now = Instant::now();
-
-        let res = event_loop.run(|event, elwt| {
-            self.model = (self.update)(&self, self.model.clone());
-            if let Event::WindowEvent {
-                event: WindowEvent::RedrawRequested,
-                ..
-            } = event
-            {
-                self.time = now.elapsed().as_secs_f32();
-                pixels
-                    .frame_mut()
-                    .copy_from_slice((self.draw)(&self, &self.model).as_ref());
-                if let Err(_err) = pixels.render() {
-                    elwt.exit();
-                    return;
-                }
-            }
-            // Handle input events
-            if input.update(&event) {
-                if input.key_pressed(KeyCode::Escape) || input.close_requested() {
-                    elwt.exit();
-                    return;
-                }
-                if let Some(size) = input.window_resized() {
-                    if let Err(_err) = pixels.resize_surface(size.width, size.height) {
-                        elwt.exit();
-                        return;
-                    }
-                }
-                self.frame_count += 1;
-                self.model = (self.update)(&self, self.model.clone());
-                window.request_redraw();
-            }
-        });
+        let res = event_loop.run_app(self);
 
         println!();
         println!(
@@ -133,5 +92,74 @@ where
         println!("Elapsed time: {} seconds", now.elapsed().as_secs_f32(),);
 
         res.map_err(|e| Error::UserDefined(Box::new(e)))
+    }
+}
+
+impl<M> ApplicationHandler for App<M>
+where
+    M: Clone,
+{
+    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        let size = LogicalSize::new(self.config.width as f64, self.config.height as f64);
+        self.window = Some(
+            event_loop
+                .create_window(
+                    Window::default_attributes()
+                        .with_title(self.window_title.clone())
+                        .with_inner_size(size)
+                        .with_min_inner_size(size),
+                )
+                .unwrap(),
+        );
+    }
+
+    fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
+        self.time = self.start_time.elapsed().as_secs_f32();
+        self.model = (self.update)(&self, self.model.clone());
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        let window = self.window.as_ref().unwrap();
+        let window_size = window.inner_size();
+        let mut pixels = {
+            let surface_texture =
+                SurfaceTexture::new(window_size.width, window_size.height, &window);
+
+            Pixels::new(self.config.width, self.config.height, surface_texture).unwrap()
+        };
+
+        self.time = self.start_time.elapsed().as_secs_f32();
+
+        match event {
+            WindowEvent::CloseRequested => {
+                event_loop.exit();
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                // Exit on escape key
+                if event.logical_key == Key::Named(NamedKey::Escape) {
+                    event_loop.exit();
+                }
+            }
+            WindowEvent::RedrawRequested => {
+                pixels
+                    .frame_mut()
+                    .copy_from_slice((self.draw)(&self, &self.model).as_ref());
+                if let Err(_err) = pixels.render() {
+                    event_loop.exit();
+                    return;
+                }
+                self.frame_count += 1;
+                self.window.as_ref().unwrap().request_redraw();
+            }
+            _ => (),
+        }
     }
 }

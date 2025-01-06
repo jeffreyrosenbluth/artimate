@@ -1,15 +1,24 @@
 use artimate::core::{App, Config, Error};
 use wassily::prelude::*;
 
+// The model holds properties that are used to draw the scene.
+// These properties can be changed in the update function
 #[derive(Clone)]
 struct Model {
+    // The radius of the planets
     radius: f32,
+    // The offset of the planets from the center
     offset: f32,
+    // The offset of the gradient from the center
     grad_offset: f32,
+    // The gradient stops for the first planet
     stops_1: Vec<GradientStop>,
+    // The gradient stops for the second planet
     stops_2: Vec<GradientStop>,
+    // The size factor of the planets
     size_factor: f32,
-    size_max: f32,
+    // The minimum size of the planets
+    size_min: f32,
 }
 
 impl Default for Model {
@@ -32,27 +41,43 @@ impl Default for Model {
                 GradientStop::new(0.70, *PALEVIOLETRED),
                 GradientStop::new(1.0, grays(25)),
             ],
-            size_factor: 1.4,
-            size_max: 0.6,
+            size_factor: 1.25,
+            size_min: 0.6,
         }
     }
 }
 
+fn main() -> Result<(), Error> {
+    let model = Model::default();
+    // Default size is 1080 x 700.
+    let config = Config::default();
+    let mut app = App::new(model, config, update, draw).set_title("Sphere");
+    app.run()
+}
+
+// The update function is called on every frame.
+// In this app no changes are made to the model,
+// all changes are a function of time which is conatined in the App struct.
 fn update(_app: &App<Model>, model: Model) -> Model {
     model
 }
 
+// Draw each planet
 fn draw_planet(
     app: &App<Model>,
     model: &Model,
+    // The position of the planet
     pos: Point,
     stops: Vec<GradientStop>,
     canvas: &mut Canvas,
 ) {
     let half_time = 0.5 * app.time;
     let quarter_time = 0.25 * app.time;
-    let size = model.size_factor * model.radius * quarter_time.cos().abs().max(model.size_max);
 
+    // The size of the planet
+    let size = model.size_factor * model.radius * quarter_time.cos().abs().max(model.size_min);
+
+    // The gradient start and end points
     let start = pt(
         pos.x - size * model.grad_offset * half_time.cos(),
         pos.y - size * model.grad_offset * half_time.sin(),
@@ -62,6 +87,7 @@ fn draw_planet(
         pos.y - size * model.grad_offset * half_time.sin(),
     );
 
+    // The gradient
     let rg = paint_rg(
         start.x,
         start.y,
@@ -79,21 +105,24 @@ fn draw_planet(
 }
 
 fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
+    // It's convenient to have both the width and height as u32 and  f32
     let (width, height) = app.config.wh();
     let (w_f32, h_f32) = app.config.wh_f32();
+
     let center = pt(w_f32 / 2.0, h_f32 / 2.0);
     let half_time = 0.5 * app.time;
 
     let mut canvas = Canvas::new(width, height);
     canvas.fill(*BLACK);
 
+    // Draw the background stars at random locations.
     let mut rng = SmallRng::seed_from_u64(0);
     let mut star_color = *WHITE;
     for _ in 0..100 {
         let x = rng.gen_range(0.0..w_f32);
         let y = rng.gen_range(0.0..h_f32);
         let r = rng.gen_range(0.5..2.0);
-        star_color.set_alpha(0.4 + (0.5 + 0.5 * app.time).sin() * rng.gen_range(0.0..0.6));
+        star_color.set_alpha(0.4 + (0.5 + half_time).sin() * rng.gen_range(0.0..0.6));
         Shape::new()
             .star(pt(x, y), r, 3.0 * r, 5)
             .fill_color(star_color)
@@ -101,21 +130,17 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
             .draw(&mut canvas);
     }
 
+    // Position of the first planet.
     let pos_1 = pt(
         center.x + model.offset * w_f32 * half_time.cos(),
         center.y + model.offset * h_f32 * half_time.sin(),
     );
     draw_planet(app, &model, pos_1, model.stops_1.clone(), &mut canvas);
 
+    // Position of the second planet, opposite position of the first planet.
     let pos_2 = pt(w_f32 - pos_1.x, h_f32 - pos_1.y);
     draw_planet(app, &model, pos_2, model.stops_2.clone(), &mut canvas);
 
+    // return the canvas data as a Vec<u8>
     canvas.take()
-}
-
-fn main() -> Result<(), Error> {
-    let model = Model::default();
-    let config = Config::new(1024, 1024);
-    let mut app = App::new(model, config, update, draw).set_title("Sphere");
-    app.run()
 }
