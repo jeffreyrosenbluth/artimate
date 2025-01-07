@@ -45,6 +45,7 @@ pub struct App<M = ()> {
     pub window_title: String,
     pub frame_count: u32,
     window: Option<Window>,
+    pub mouse_position: (f32, f32),
 }
 
 impl<M> App<M>
@@ -67,6 +68,7 @@ where
             frame_count: 0,
             window: None,
             start_time: Instant::now(),
+            mouse_position: (0.0, 0.0),
         }
     }
 
@@ -92,6 +94,14 @@ where
         println!("Elapsed time: {} seconds", now.elapsed().as_secs_f32(),);
 
         res.map_err(|e| Error::UserDefined(Box::new(e)))
+    }
+
+    pub fn mouse_x(&self) -> f32 {
+        self.mouse_position.0
+    }
+
+    pub fn mouse_y(&self) -> f32 {
+        self.mouse_position.1
     }
 }
 
@@ -146,6 +156,13 @@ where
                 // Exit on escape key
                 if event.logical_key == Key::Named(NamedKey::Escape) {
                     event_loop.exit();
+                }
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                if let Some(window) = &self.window {
+                    let scale_factor = window.scale_factor();
+                    let logical_position = position.to_logical(scale_factor);
+                    self.mouse_position = (logical_position.x, logical_position.y);
                 }
             }
             WindowEvent::RedrawRequested => {
