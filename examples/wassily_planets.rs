@@ -56,8 +56,7 @@ fn main() -> Result<(), Error> {
 }
 
 // The update function is called on every frame.
-// In this app no changes are made to the model,
-// all changes are a function of time which is conatined in the App struct.
+// Here we changed the gradient stops of the planets based on the mouse position y coordinate.
 fn update(app: &App<Model>, model: Model) -> Model {
     let v = map_range(app.mouse_y(), 0.0, app.config.height as f32, 0.35, 0.75);
     let u = map_range(app.mouse_y(), 0.0, app.config.height as f32, 0.3, 0.7);
@@ -152,6 +151,6 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
     let pos_2 = pt(w_f32 - pos_1.x, h_f32 - pos_1.y);
     draw_planet(app, &model, pos_2, model.stops_2.clone(), &mut canvas);
 
-    // return the canvas data as a Vec<u8>
+    // return the canvas data as a Vec<u8> in RGBA order
     canvas.take()
 }

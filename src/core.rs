@@ -7,7 +7,7 @@ use winit::{
     event::WindowEvent,
     event_loop::{ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
-    window::{Window, WindowId},
+    window::{CursorIcon, Window, WindowId},
 };
 
 pub struct Config {
@@ -163,6 +163,17 @@ where
                     let scale_factor = window.scale_factor();
                     let logical_position = position.to_logical(scale_factor);
                     self.mouse_position = (logical_position.x, logical_position.y);
+                }
+            }
+            WindowEvent::CursorEntered { .. } => {
+                if let Some(window) = &self.window {
+                    window.set_cursor_visible(false);
+                }
+            }
+            WindowEvent::CursorLeft { .. } => {
+                // Show cursor when it leaves the window
+                if let Some(window) = &self.window {
+                    window.set_cursor_visible(true);
                 }
             }
             WindowEvent::RedrawRequested => {
