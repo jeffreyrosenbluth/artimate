@@ -46,6 +46,7 @@ pub struct App<M = ()> {
     pub frame_count: u32,
     window: Option<Window>,
     pub mouse_position: (f32, f32),
+    pub cursor_visible: bool,
 }
 
 impl<M> App<M>
@@ -69,6 +70,7 @@ where
             window: None,
             start_time: Instant::now(),
             mouse_position: (0.0, 0.0),
+            cursor_visible: false,
         }
     }
 
@@ -167,12 +169,17 @@ where
             }
             WindowEvent::CursorEntered { .. } => {
                 if let Some(window) = &self.window {
-                    window.set_cursor_visible(false);
+                    if self.cursor_visible {
+                        window.set_cursor_icon(CursorIcon::Cell);
+                    } else {
+                        window.set_cursor_visible(false);
+                    }
                 }
             }
             WindowEvent::CursorLeft { .. } => {
                 // Show cursor when it leaves the window
                 if let Some(window) = &self.window {
+                    window.set_cursor(CursorIcon::Default);
                     window.set_cursor_visible(true);
                 }
             }

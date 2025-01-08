@@ -127,7 +127,11 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
     // Draw the background stars at random locations.
     let mut rng = SmallRng::seed_from_u64(0);
     let mut star_color = *WHITE;
-    let num_stars = app.mouse_x() as usize;
+    let num_stars = if app.mouse_x() < 1.0 {
+        100
+    } else {
+        app.mouse_x() as usize
+    };
     for _ in 0..num_stars {
         let x = rng.gen_range(0.0..w_f32);
         let y = rng.gen_range(0.0..h_f32);
