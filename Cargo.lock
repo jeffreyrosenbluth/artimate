@@ -143,6 +143,7 @@ name = "artimate"
 version = "0.1.0"
 dependencies = [
  "pixels",
+ "png",
  "tiny-skia",
  "wassily",
  "winit",
