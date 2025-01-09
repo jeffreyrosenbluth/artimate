@@ -51,24 +51,17 @@ fn main() -> Result<(), Error> {
     let model = Model::default();
     // Default size is 1080 x 700.
     let config = Config::default();
-    let mut app = App::new(model, config, update, draw).set_title("Sphere");
+    let mut app = App::new(model, config, update, draw)
+        .set_title("Sphere")
+        .set_frames_to_save(10);
     app.run()
 }
 
 // The update function is called on every frame.
-// Here we changed the gradient stops of the planets based on the mouse position y coordinate.
-fn update(app: &App<Model>, model: Model) -> Model {
-    let v = map_range(app.mouse_y(), 0.0, app.config.height as f32, 0.35, 0.75);
-    let u = map_range(app.mouse_y(), 0.0, app.config.height as f32, 0.3, 0.7);
-    let mut stops1 = model.stops_1;
-    let mut stops2 = model.stops_2;
-    stops1[2] = GradientStop::new(v, *INDIANRED);
-    stops2[2] = GradientStop::new(u, *TEAL);
-    Model {
-        stops_1: stops1,
-        stops_2: stops2,
-        ..model
-    }
+// In this app no changes are made to the model,
+// all changes are a function of time which is conatined in the App struct.
+fn update(_app: &App<Model>, model: Model) -> Model {
+    model
 }
 
 // Draw each planet
@@ -127,12 +120,7 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
     // Draw the background stars at random locations.
     let mut rng = SmallRng::seed_from_u64(0);
     let mut star_color = *WHITE;
-    let num_stars = if app.mouse_x() < 1.0 {
-        100
-    } else {
-        app.mouse_x() as usize
-    };
-    for _ in 0..num_stars {
+    for _ in 0..100 {
         let x = rng.gen_range(0.0..w_f32);
         let y = rng.gen_range(0.0..h_f32);
         let r = rng.gen_range(0.5..2.0);
@@ -155,6 +143,6 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
     let pos_2 = pt(w_f32 - pos_1.x, h_f32 - pos_1.y);
     draw_planet(app, &model, pos_2, model.stops_2.clone(), &mut canvas);
 
-    // return the canvas data as a Vec<u8> in RGBA order
+    // return the canvas data as a Vec<u8>
     canvas.take()
 }

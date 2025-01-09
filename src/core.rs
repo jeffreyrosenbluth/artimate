@@ -1,5 +1,8 @@
+use dirs;
 pub use pixels::Error;
 use pixels::{Pixels, SurfaceTexture};
+use png::Encoder;
+use std::sync::mpsc;
 use std::time::Instant;
 use winit::{
     application::ApplicationHandler,
@@ -47,6 +50,8 @@ pub struct App<M = ()> {
     window: Option<Window>,
     pub mouse_position: (f32, f32),
     pub cursor_visible: bool,
+    frames_to_save: u32,
+    frame_sender: Option<mpsc::Sender<(Box<[u8]>, String, u32, u32)>>,
 }
 
 impl<M> App<M>
@@ -59,6 +64,24 @@ where
         update: fn(&App<M>, M) -> M,
         draw: fn(&App<M>, &M) -> Vec<u8>,
     ) -> Self {
+        let (tx, rx): (
+            mpsc::Sender<(Box<[u8]>, String, u32, u32)>,
+            mpsc::Receiver<(Box<[u8]>, String, u32, u32)>,
+        ) = mpsc::channel();
+
+        // Spawn background thread for saving frames
+        std::thread::spawn(move || {
+            while let Ok((frame_data, filename, width, height)) = rx.recv() {
+                // Create the PNG encoder
+                let file = std::fs::File::create(&filename).unwrap();
+                let mut encoder = Encoder::new(file, width, height);
+                encoder.set_color(png::ColorType::Rgba);
+                encoder.set_depth(png::BitDepth::Eight);
+
+                let mut writer = encoder.write_header().unwrap();
+                writer.write_image_data(&frame_data[..]).unwrap();
+            }
+        });
         Self {
             model,
             config,
@@ -70,13 +93,22 @@ where
             window: None,
             start_time: Instant::now(),
             mouse_position: (0.0, 0.0),
-            cursor_visible: false,
+            cursor_visible: true,
+            frames_to_save: 0,
+            frame_sender: Some(tx),
         }
     }
 
     pub fn set_title(self, title: &str) -> Self {
         Self {
             window_title: title.to_string(),
+            ..self
+        }
+    }
+
+    pub fn set_frames_to_save(self, frames_to_save: u32) -> Self {
+        Self {
+            frames_to_save,
             ..self
         }
     }
@@ -125,14 +157,6 @@ where
         );
     }
 
-    fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
-        self.time = self.start_time.elapsed().as_secs_f32();
-        self.model = (self.update)(&self, self.model.clone());
-        if let Some(window) = &self.window {
-            window.request_redraw();
-        }
-    }
-
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
@@ -170,7 +194,7 @@ where
             WindowEvent::CursorEntered { .. } => {
                 if let Some(window) = &self.window {
                     if self.cursor_visible {
-                        window.set_cursor_icon(CursorIcon::Cell);
+                        window.set_cursor(CursorIcon::Crosshair);
                     } else {
                         window.set_cursor_visible(false);
                     }
@@ -187,6 +211,28 @@ where
                 pixels
                     .frame_mut()
                     .copy_from_slice((self.draw)(&self, &self.model).as_ref());
+
+                if self.frame_count < self.frames_to_save {
+                    if let Some(sender) = &self.frame_sender {
+                        let frame_data: Box<[u8]> = pixels.frame().to_vec().into();
+                        let downloads_dir =
+                            dirs::download_dir().expect("Could not find Downloads directory");
+                        let output_dir = downloads_dir.join("frames");
+                        std::fs::create_dir_all(&output_dir)
+                            .expect("Failed to create frames directory");
+                        let filename =
+                            output_dir.join(format!("frame_{:04}.png", self.frame_count));
+                        sender
+                            .send((
+                                frame_data,
+                                filename.to_string_lossy().to_string(),
+                                self.config.width,
+                                self.config.height,
+                            ))
+                            .unwrap();
+                    }
+                }
+
                 if let Err(_err) = pixels.render() {
                     event_loop.exit();
                     return;
