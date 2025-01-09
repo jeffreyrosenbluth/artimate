@@ -1,3 +1,4 @@
+use dirs;
 pub use pixels::Error;
 use pixels::{Pixels, SurfaceTexture};
 use png::Encoder;
@@ -93,7 +94,7 @@ where
             start_time: Instant::now(),
             mouse_position: (0.0, 0.0),
             cursor_visible: true,
-            frames_to_save: 3,
+            frames_to_save: 0,
             frame_sender: Some(tx),
         }
     }
@@ -101,6 +102,13 @@ where
     pub fn set_title(self, title: &str) -> Self {
         Self {
             window_title: title.to_string(),
+            ..self
+        }
+    }
+
+    pub fn set_frames_to_save(self, frames_to_save: u32) -> Self {
+        Self {
+            frames_to_save,
             ..self
         }
     }
@@ -207,9 +215,20 @@ where
                 if self.frame_count < self.frames_to_save {
                     if let Some(sender) = &self.frame_sender {
                         let frame_data: Box<[u8]> = pixels.frame().to_vec().into();
-                        let filename = format!("frame_{:04}.png", self.frame_count);
+                        let downloads_dir =
+                            dirs::download_dir().expect("Could not find Downloads directory");
+                        let output_dir = downloads_dir.join("frames");
+                        std::fs::create_dir_all(&output_dir)
+                            .expect("Failed to create frames directory");
+                        let filename =
+                            output_dir.join(format!("frame_{:04}.png", self.frame_count));
                         sender
-                            .send((frame_data, filename, self.config.width, self.config.height))
+                            .send((
+                                frame_data,
+                                filename.to_string_lossy().to_string(),
+                                self.config.width,
+                                self.config.height,
+                            ))
                             .unwrap();
                     }
                 }
