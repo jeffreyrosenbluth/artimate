@@ -237,6 +237,8 @@ where
                     event_loop.exit();
                     return;
                 }
+
+                self.model = (self.update)(&self, self.model.clone());
                 self.frame_count += 1;
                 self.window.as_ref().unwrap().request_redraw();
             }
