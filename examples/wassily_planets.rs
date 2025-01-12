@@ -53,7 +53,7 @@ fn main() -> Result<(), Error> {
     let config = Config::default();
     let mut app = App::new(model, config, update, draw)
         .set_title("Sphere")
-        .set_frames_to_save(10);
+        .set_frames_to_save(1508);
     app.run()
 }
 
