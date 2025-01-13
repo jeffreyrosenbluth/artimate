@@ -1,5 +1,12 @@
 use artimate::core::{App, Config, Error};
-use wassily::prelude::*;
+use noise::{NoiseFn, Value};
+use tiny_skia::*;
+
+const TAU: f32 = std::f32::consts::PI * 2.0;
+
+fn map_range(x: f32, in_min: f32, in_max: f32, out_min: f32, out_max: f32) -> f32 {
+    (x - in_min) / (in_max - in_min) * (out_max - out_min) + out_min
+}
 
 #[derive(Clone)]
 struct Model {
@@ -28,6 +35,7 @@ fn update(_app: &App<Model>, model: Model) -> Model {
     model
 }
 
+// Create a periodic noise function.
 fn periodic_noise(model: &Model, p: f32, seed: f32, x: f32, y: f32) -> f32 {
     let u = seed + (TAU * p).cos();
     let v = (TAU * p).sin();
@@ -39,17 +47,23 @@ fn periodic_noise(model: &Model, p: f32, seed: f32, x: f32, y: f32) -> f32 {
     ]) as f32
 }
 
+// Offset for the the first 2 parameters of the 4d noise function.
 fn offset(app: &App<Model>, model: &Model, x: f32, y: f32) -> f32 {
     let (w, h) = app.config.wh_f32();
     let dist2 = (x - w / 2.0) * (x - w / 2.0) + (y - h / 2.0) * (y - h / 2.0);
     model.factor * dist2.sqrt()
 }
 
+// Color a single pixel at (x, y) with the given color.
+pub fn point(pixmap: &mut Pixmap, x: f32, y: f32, color: Color) {
+    let width = pixmap.width();
+    let pixel_map = pixmap.pixels_mut();
+    let k = y as usize * width as usize + x as usize;
+    pixel_map[k] = color.premultiply().to_color_u8();
+}
+
 fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
-    let mut canvas = Canvas::new(app.config.width, app.config.height);
-    canvas.fill(*BLACK);
-    let mut color = *WHITE;
-    color.set_alpha(0.6);
+    let mut pixmap = Pixmap::new(app.config.width, app.config.height).unwrap();
     let t = (app.frame_count - 1) as f32 / model.num_frames as f32;
     for i in 0..model.m {
         for j in 0..model.m {
@@ -69,15 +83,22 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
             );
             let dx = 40.0 * periodic_noise(model, t - offset(app, model, x, y), 0.0, x, y);
             let dy = 40.0 * periodic_noise(model, t - offset(app, model, x, y), 123.0, x, y);
-            canvas.dot(x + dx, y + dy, color);
+            point(
+                &mut pixmap,
+                x + dx,
+                y + dy,
+                Color::from_rgba8(255, 255, 255, 153),
+            );
         }
     }
-    canvas.take()
+    pixmap.take()
 }
 
 fn main() -> Result<(), Error> {
     let model = Model::default();
     let config = Config::new(700, 700);
-    let mut app = App::new(model, config, update, draw).set_frames_to_save(38);
+    let mut app = App::new(model, config, update, draw)
+        .set_frames_to_save(50)
+        .set_title("Noise Loop");
     app.run()
 }
