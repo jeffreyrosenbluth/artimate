@@ -37,8 +37,8 @@ impl Default for Model {
             stops_2: vec![
                 GradientStop::new(0.0, *WHITE),
                 GradientStop::new(0.30, grays(70)),
-                GradientStop::new(0.5, *TEAL),
-                GradientStop::new(0.70, *PALEVIOLETRED),
+                GradientStop::new(0.5, *DARKSLATEGRAY),
+                GradientStop::new(0.70, *INDIANRED),
                 GradientStop::new(1.0, grays(25)),
             ],
             size_factor: 1.25,
@@ -62,7 +62,7 @@ fn update(app: &App<Model>, model: Model) -> Model {
     let mut stops1 = model.stops_1;
     let mut stops2 = model.stops_2;
     stops1[2] = GradientStop::new(v, *INDIANRED);
-    stops2[2] = GradientStop::new(u, *TEAL);
+    stops2[2] = GradientStop::new(u, *DARKSLATEGRAY);
     Model {
         stops_1: stops1,
         stops_2: stops2,
