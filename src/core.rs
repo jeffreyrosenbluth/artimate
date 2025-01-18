@@ -17,6 +17,7 @@ pub struct Config {
     pub width: u32,
     pub height: u32,
     pub no_loop: bool,
+    pub frames: Option<u32>,
     pub cursor_visible: bool,
     pub frames_to_save: u32,
 }
@@ -33,6 +34,7 @@ impl Config {
             width,
             height,
             no_loop,
+            frames: None,
             cursor_visible,
             frames_to_save,
         }
@@ -67,6 +69,13 @@ impl Config {
     pub fn no_loop(self) -> Self {
         Self {
             no_loop: true,
+            ..self
+        }
+    }
+
+    pub fn set_frames(self, frames: u32) -> Self {
+        Self {
+            frames: Some(frames),
             ..self
         }
     }
@@ -273,8 +282,15 @@ where
 
                 self.model = (self.update)(&self, self.model.clone());
                 self.frame_count += 1;
+
                 if !self.config.no_loop {
-                    self.window.as_ref().unwrap().request_redraw();
+                    if let Some(frames) = self.config.frames {
+                        if self.frame_count <= frames {
+                            self.window.as_ref().unwrap().request_redraw();
+                        }
+                    } else {
+                        self.window.as_ref().unwrap().request_redraw();
+                    }
                 }
             }
             _ => (),
