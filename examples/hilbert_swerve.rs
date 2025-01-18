@@ -4,11 +4,21 @@ use wassily::prelude::*;
 #[derive(Clone)]
 struct Model {
     order: u32,
+    noise: Perlin,
+    scale: f64,
+    factor: f32,
+    margin: f32,
 }
 
 impl Default for Model {
     fn default() -> Self {
-        Self { order: 6 }
+        Self {
+            order: 6,
+            noise: Perlin::default(),
+            scale: 0.03,
+            factor: 10.0,
+            margin: 125.0,
+        }
     }
 }
 
@@ -35,10 +45,24 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
         let j = i as usize;
         path.push(hilbert(i, model.order));
         let (w, h) = app.config.wh_f32();
+        let w = w - model.margin * 2.0;
+        let h = h - model.margin * 2.0;
         let m = w / n as f32;
         let l = h / n as f32;
-        path[j] = pt(m * path[j].x, l * path[j].y);
-        path[j] = pt(path[j].x + m / 2.0, path[j].y + l / 2.0);
+        let s = model.scale;
+        let nx = app.frame_count as f32 / app.config.frames.unwrap() as f32
+            * model.factor
+            * model
+                .noise
+                .get([s * path[j].x as f64, s * path[j].y as f64]) as f32;
+        let ny = app.frame_count as f32 / app.config.frames.unwrap() as f32
+            * model.factor
+            * model
+                .noise
+                .get([123.0 + s * path[j].x as f64, 123.0 + s * path[j].y as f64])
+                as f32;
+        path[j] = pt(m * (path[j].x + nx), l * (path[j].y + ny));
+        path[j] = pt(path[j].x + model.margin, path[j].y + model.margin);
     }
 
     let t = smoother_step(app.frame_count as f32 / app.config.frames.unwrap() as f32);
