@@ -1,5 +1,5 @@
 use artimate::core::{App, Config, Error};
-use noise::{NoiseFn, Value};
+use noise::{NoiseFn, Perlin, RidgedMulti, Value};
 use tiny_skia::*;
 
 const TAU: f32 = std::f32::consts::PI * 2.0;
@@ -24,7 +24,7 @@ impl Default for Model {
             scale: 0.013,
             factor: 0.01,
             m: 500,
-            num_frames: 50,
+            num_frames: 100,
             margin: 70.0,
             noise: Value::default(),
         }
@@ -62,6 +62,7 @@ pub fn point(pixmap: &mut Pixmap, x: f32, y: f32, color: Color) {
     pixel_map[k] = color.premultiply().to_color_u8();
 }
 
+// Draw a single frame.
 fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
     let mut pixmap = Pixmap::new(app.config.width, app.config.height).unwrap();
     let t = (app.frame_count - 1) as f32 / model.num_frames as f32;
@@ -96,9 +97,7 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
 
 fn main() -> Result<(), Error> {
     let model = Model::default();
-    let config = Config::new(700, 700);
-    let mut app = App::new(model, config, update, draw)
-        .set_frames_to_save(50)
-        .set_title("Noise Loop");
+    let config = Config::from_dims(700, 700).set_frames_to_save(50);
+    let mut app = App::new(model, config, update, draw).set_title("Noise Loop");
     app.run()
 }

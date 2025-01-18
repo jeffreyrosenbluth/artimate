@@ -16,11 +16,30 @@ use winit::{
 pub struct Config {
     pub width: u32,
     pub height: u32,
+    pub no_loop: bool,
+    pub cursor_visible: bool,
+    pub frames_to_save: u32,
 }
 
 impl Config {
-    pub fn new(width: u32, height: u32) -> Self {
-        Self { width, height }
+    pub fn new(
+        width: u32,
+        height: u32,
+        no_loop: bool,
+        cursor_visible: bool,
+        frames_to_save: u32,
+    ) -> Self {
+        Self {
+            width,
+            height,
+            no_loop,
+            cursor_visible,
+            frames_to_save,
+        }
+    }
+
+    pub fn from_dims(width: u32, height: u32) -> Self {
+        Self::new(width, height, false, true, 0)
     }
 
     pub fn wh(&self) -> (u32, u32) {
@@ -30,11 +49,29 @@ impl Config {
     pub fn wh_f32(&self) -> (f32, f32) {
         (self.width as f32, self.height as f32)
     }
+
+    pub fn set_frames_to_save(self, frames_to_save: u32) -> Self {
+        Self {
+            frames_to_save,
+            ..self
+        }
+    }
+
+    pub fn set_cursor_visibility(self, cursor_visible: bool) -> Self {
+        Self {
+            cursor_visible,
+            ..self
+        }
+    }
+
+    pub fn set_no_loop(self, no_loop: bool) -> Self {
+        Self { no_loop, ..self }
+    }
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new(1080, 700)
+        Self::new(1080, 700, false, true, 0)
     }
 }
 
@@ -49,8 +86,6 @@ pub struct App<M = ()> {
     pub frame_count: u32,
     window: Option<Window>,
     pub mouse_position: (f32, f32),
-    pub cursor_visible: bool,
-    frames_to_save: u32,
     frame_sender: Option<mpsc::Sender<(Box<[u8]>, String, u32, u32)>>,
 }
 
@@ -64,24 +99,28 @@ where
         update: fn(&App<M>, M) -> M,
         draw: fn(&App<M>, &M) -> Vec<u8>,
     ) -> Self {
-        let (tx, rx): (
-            mpsc::Sender<(Box<[u8]>, String, u32, u32)>,
-            mpsc::Receiver<(Box<[u8]>, String, u32, u32)>,
-        ) = mpsc::channel();
+        let mut maybe_tx = None;
+        if config.frames_to_save > 0 {
+            let (tx, rx): (
+                mpsc::Sender<(Box<[u8]>, String, u32, u32)>,
+                mpsc::Receiver<(Box<[u8]>, String, u32, u32)>,
+            ) = mpsc::channel();
 
-        // Spawn background thread for saving frames
-        std::thread::spawn(move || {
-            while let Ok((frame_data, filename, width, height)) = rx.recv() {
-                // Create the PNG encoder
-                let file = std::fs::File::create(&filename).unwrap();
-                let mut encoder = Encoder::new(file, width, height);
-                encoder.set_color(png::ColorType::Rgba);
-                encoder.set_depth(png::BitDepth::Eight);
+            // Spawn background thread for saving frames
+            std::thread::spawn(move || {
+                while let Ok((frame_data, filename, width, height)) = rx.recv() {
+                    // Create the PNG encoder
+                    let file = std::fs::File::create(&filename).unwrap();
+                    let mut encoder = Encoder::new(file, width, height);
+                    encoder.set_color(png::ColorType::Rgba);
+                    encoder.set_depth(png::BitDepth::Eight);
 
-                let mut writer = encoder.write_header().unwrap();
-                writer.write_image_data(&frame_data[..]).unwrap();
-            }
-        });
+                    let mut writer = encoder.write_header().unwrap();
+                    writer.write_image_data(&frame_data[..]).unwrap();
+                }
+            });
+            maybe_tx = Some(tx);
+        }
         Self {
             model,
             config,
@@ -93,22 +132,13 @@ where
             window: None,
             start_time: Instant::now(),
             mouse_position: (0.0, 0.0),
-            cursor_visible: true,
-            frames_to_save: 0,
-            frame_sender: Some(tx),
+            frame_sender: maybe_tx,
         }
     }
 
     pub fn set_title(self, title: &str) -> Self {
         Self {
             window_title: title.to_string(),
-            ..self
-        }
-    }
-
-    pub fn set_frames_to_save(self, frames_to_save: u32) -> Self {
-        Self {
-            frames_to_save,
             ..self
         }
     }
@@ -193,7 +223,7 @@ where
             }
             WindowEvent::CursorEntered { .. } => {
                 if let Some(window) = &self.window {
-                    if self.cursor_visible {
+                    if self.config.cursor_visible {
                         window.set_cursor(CursorIcon::Crosshair);
                     } else {
                         window.set_cursor_visible(false);
@@ -212,7 +242,7 @@ where
                     .frame_mut()
                     .copy_from_slice((self.draw)(&self, &self.model).as_ref());
 
-                if self.frame_count > 0 && self.frame_count <= self.frames_to_save {
+                if self.frame_count > 0 && self.frame_count <= self.config.frames_to_save {
                     if let Some(sender) = &self.frame_sender {
                         let frame_data: Box<[u8]> = pixels.frame().to_vec().into();
                         let downloads_dir =
@@ -240,7 +270,9 @@ where
 
                 self.model = (self.update)(&self, self.model.clone());
                 self.frame_count += 1;
-                self.window.as_ref().unwrap().request_redraw();
+                if !self.config.no_loop {
+                    self.window.as_ref().unwrap().request_redraw();
+                }
             }
             _ => (),
         }

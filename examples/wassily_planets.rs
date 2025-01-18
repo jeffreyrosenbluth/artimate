@@ -50,10 +50,8 @@ impl Default for Model {
 fn main() -> Result<(), Error> {
     let model = Model::default();
     // Default size is 1080 x 700.
-    let config = Config::default();
-    let mut app = App::new(model, config, update, draw)
-        .set_title("Sphere")
-        .set_frames_to_save(1508);
+    let config = Config::default().set_frames_to_save(1508);
+    let mut app = App::new(model, config, update, draw).set_title("Sphere");
     app.run()
 }
 
