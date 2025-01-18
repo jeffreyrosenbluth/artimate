@@ -64,8 +64,11 @@ impl Config {
         }
     }
 
-    pub fn set_no_loop(self, no_loop: bool) -> Self {
-        Self { no_loop, ..self }
+    pub fn no_loop(self) -> Self {
+        Self {
+            no_loop: true,
+            ..self
+        }
     }
 }
 
