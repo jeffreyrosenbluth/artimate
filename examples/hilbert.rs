@@ -13,9 +13,10 @@ impl Default for Model {
 }
 
 fn main() -> Result<(), Error> {
-    let n = 2u32.pow(6);
+    let model = Model::default();
+    let n = 2u32.pow(model.order);
     let config = Config::from_dims(1080, 1080).set_frames(n * n);
-    let mut app = App::new(Model::default(), config, update, draw).set_title("Hilbert");
+    let mut app = App::new(model, config, update, draw).set_title("Hilbert");
     app.run()
 }
 
@@ -28,10 +29,9 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
     canvas.fill(*BLACK);
 
     let n = 2u32.pow(model.order);
-    let n2 = n * n;
     let mut path = vec![];
 
-    for i in 0..n2 {
+    for i in 0..app.frame_count {
         let j = i as usize;
         path.push(hilbert(i, model.order));
         let (w, h) = app.config.wh_f32();
@@ -41,12 +41,18 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
         path[j] = pt(path[j].x + m / 2.0, path[j].y + l / 2.0);
     }
 
-    let path = path[0..app.frame_count as usize].to_vec();
+    let t = smoother_step(app.frame_count as f32 / app.config.frames.unwrap() as f32);
+
+    let color = if t < 0.5 {
+        (*PINK).lerp(&DEEPPINK, 2.0 * t)
+    } else {
+        (*DEEPPINK).lerp(&PINK, 2.0 * (t - 0.5))
+    };
 
     Shape::new()
         .points(&path)
         .no_fill()
-        .stroke_color(*WHITE)
+        .stroke_color(color)
         .stroke_weight(2.0)
         .draw(&mut canvas);
 
