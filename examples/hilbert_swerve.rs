@@ -25,9 +25,8 @@ impl Default for Model {
 fn main() -> Result<(), Error> {
     let model = Model::default();
     let n = 2u32.pow(model.order);
-    let config = Config::from_dims(1080, 1080)
-        .set_frames(n * n)
-        .set_frames_to_save(n * n);
+    let config = Config::with_dims(1080, 1080).set_frames(n * n);
+    // .set_frames_to_save(n * n);
     let mut app = App::new(model, config, update, draw).set_title("Hilbert");
     app.run()
 }
@@ -68,12 +67,7 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
     }
 
     let t = smoother_step(app.frame_count as f32 / app.config.frames.unwrap() as f32);
-
-    let color = if t < 0.5 {
-        (*PINK).lerp(&DEEPPINK, 2.0 * t)
-    } else {
-        (*DEEPPINK).lerp(&PINK, 2.0 * (t - 0.5))
-    };
+    let color = (*CORNFLOWERBLUE).lerp(&(*PINK), t);
 
     Shape::new()
         .points(&path)

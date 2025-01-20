@@ -2,7 +2,7 @@ use artimate::core::{App, Config, Error};
 use wassily::prelude::*;
 
 fn main() -> Result<(), Error> {
-    let config = Config::from_dims(540, 540);
+    let config = Config::with_dims(540, 540);
     let model = Model::default();
     let mut app = App::new(model, config, update, draw).set_title("Flag");
     app.run()

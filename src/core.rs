@@ -60,7 +60,7 @@ impl Config {
 
     /// Creates a new configuration with just width and height
     /// Other parameters are set to their defaults
-    pub fn from_dims(width: u32, height: u32) -> Self {
+    pub fn with_dims(width: u32, height: u32) -> Self {
         Self::new(width, height, false, true, 0)
     }
 

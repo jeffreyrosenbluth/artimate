@@ -97,7 +97,7 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
 
 fn main() -> Result<(), Error> {
     let model = Model::default();
-    let config = Config::from_dims(700, 700).set_frames_to_save(50);
+    let config = Config::with_dims(700, 700).set_frames_to_save(50);
     let mut app = App::new(model, config, update, draw).set_title("Noise Loop");
     app.run()
 }

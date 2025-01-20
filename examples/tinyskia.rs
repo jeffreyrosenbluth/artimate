@@ -5,7 +5,7 @@ use tiny_skia::*;
 struct Model;
 fn main() -> Result<(), Error> {
     let model = Model;
-    let config = Config::from_dims(500, 500);
+    let config = Config::with_dims(500, 500);
     let mut app = App::new(model, config, update, draw);
     app.run()
 }
