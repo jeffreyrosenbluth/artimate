@@ -25,7 +25,9 @@ impl Default for Model {
 fn main() -> Result<(), Error> {
     let model = Model::default();
     let n = 2u32.pow(model.order);
-    let config = Config::from_dims(1080, 1080).set_frames(n * n);
+    let config = Config::from_dims(1080, 1080)
+        .set_frames(n * n)
+        .set_frames_to_save(n * n);
     let mut app = App::new(model, config, update, draw).set_title("Hilbert");
     app.run()
 }
@@ -84,36 +86,34 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
 }
 
 fn hilbert(k: u32, order: u32) -> Point {
-    let points = vec![pt(0.0, 0.0), pt(0.0, 1.0), pt(1.0, 1.0), pt(1.0, 0.0)];
-    let idx = k as usize & 3;
-    let mut v = points[idx];
-    let mut i = k;
+    // Base points for the Hilbert curve
+    let mut v = match k & 3 {
+        0 => pt(0.0, 0.0),
+        1 => pt(0.0, 1.0),
+        2 => pt(1.0, 1.0),
+        _ => pt(1.0, 0.0),
+    };
+
+    let mut i = k >> 2; // Start from the next significant bits
 
     for j in 1..order {
-        i >>= 2;
-        let index = i & 3;
         let n = 2u32.pow(j) as f32;
-        match index {
-            0 => {
-                let temp = v.x;
-                v.x = v.y;
-                v.y = temp;
-            }
-            1 => {
-                v.y += n;
-            }
+        match i & 3 {
+            0 => (v.x, v.y) = (v.y, v.x), // Rotate 90° clockwise
+            1 => v.y += n,                // Move up
             2 => {
+                // Move diagonally
                 v.x += n;
                 v.y += n;
             }
-            3 => {
+            _ => {
+                // Rotate 90° counter-clockwise and move right
                 let temp = n - 1.0 - v.x;
-                v.x = n - 1.0 - v.y;
+                v.x = n - 1.0 - v.y + n;
                 v.y = temp;
-                v.x += n;
             }
-            _ => {}
         }
+        i >>= 2;
     }
     v
 }

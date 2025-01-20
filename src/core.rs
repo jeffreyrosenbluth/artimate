@@ -2,27 +2,45 @@ use dirs;
 pub use pixels::Error;
 use pixels::{Pixels, SurfaceTexture};
 use png::Encoder;
+use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::mpsc;
 use std::time::Instant;
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
-    event::WindowEvent,
+    event::{MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
     window::{CursorIcon, Window, WindowId},
 };
 
+/// Configuration for the application window and rendering behavior
+#[derive(Debug)]
 pub struct Config {
+    /// Width of the window in pixels
     pub width: u32,
+    /// Height of the window in pixels
     pub height: u32,
+    /// If true, the application will only render one frame
     pub no_loop: bool,
+    /// Optional limit on the number of frames to render
     pub frames: Option<u32>,
+    /// Controls whether the cursor is visible in the window
     pub cursor_visible: bool,
+    /// Number of frames to save as PNG files
     pub frames_to_save: u32,
 }
 
 impl Config {
+    /// Creates a new configuration with the specified parameters
+    ///
+    /// # Arguments
+    /// * `width` - Window width in pixels
+    /// * `height` - Window height in pixels
+    /// * `no_loop` - If true, renders only one frame
+    /// * `cursor_visible` - Controls cursor visibility
+    /// * `frames_to_save` - Number of frames to save as PNG files
     pub fn new(
         width: u32,
         height: u32,
@@ -40,18 +58,23 @@ impl Config {
         }
     }
 
+    /// Creates a new configuration with just width and height
+    /// Other parameters are set to their defaults
     pub fn from_dims(width: u32, height: u32) -> Self {
         Self::new(width, height, false, true, 0)
     }
 
+    /// Returns the width and height as a tuple of u32
     pub fn wh(&self) -> (u32, u32) {
         (self.width, self.height)
     }
 
+    /// Returns the width and height as a tuple of f32
     pub fn wh_f32(&self) -> (f32, f32) {
         (self.width as f32, self.height as f32)
     }
 
+    /// Sets the number of frames to save and returns updated config
     pub fn set_frames_to_save(self, frames_to_save: u32) -> Self {
         Self {
             frames_to_save,
@@ -59,6 +82,7 @@ impl Config {
         }
     }
 
+    /// Sets cursor visibility and returns updated config
     pub fn set_cursor_visibility(self, cursor_visible: bool) -> Self {
         Self {
             cursor_visible,
@@ -66,6 +90,7 @@ impl Config {
         }
     }
 
+    /// Sets no_loop to true and returns updated config
     pub fn no_loop(self) -> Self {
         Self {
             no_loop: true,
@@ -73,6 +98,7 @@ impl Config {
         }
     }
 
+    /// Sets the frame limit and returns updated config
     pub fn set_frames(self, frames: u32) -> Self {
         Self {
             frames: Some(frames),
@@ -87,24 +113,48 @@ impl Default for Config {
     }
 }
 
+/// Main application struct that handles window management and rendering
+///
+/// # Type Parameters
+/// * `M` - The type of the model/state used in the application
 pub struct App<M = ()> {
+    /// The application's model/state
     pub model: M,
+    /// Configuration settings for the application
     pub config: Config,
+    /// Function called each frame to update the model
     pub update: fn(&App<M>, M) -> M,
+    /// Function called each frame to generate pixel data
     pub draw: fn(&App<M>, &M) -> Vec<u8>,
+    /// Time elapsed since application start in seconds
     pub time: f32,
+    /// Instant when the application started
     pub start_time: Instant,
+    /// Title of the application window
     pub window_title: String,
+    /// Number of frames rendered
     pub frame_count: u32,
     window: Option<Window>,
+    /// Current mouse position as (x, y) coordinates
     pub mouse_position: (f32, f32),
     frame_sender: Option<mpsc::Sender<(Box<[u8]>, String, u32, u32)>>,
+    /// Map of key handlers for custom key events
+    key_handlers: HashMap<Key, Rc<dyn Fn(&mut App<M>)>>,
+    /// Map of mouse button handlers for custom mouse events
+    mouse_handlers: HashMap<MouseButton, Rc<dyn Fn(&mut App<M>)>>,
 }
 
 impl<M> App<M>
 where
     M: Clone,
 {
+    /// Creates a new application instance
+    ///
+    /// # Arguments
+    /// * `model` - Initial state of the application
+    /// * `config` - Configuration settings
+    /// * `update` - Function called each frame to update the model
+    /// * `draw` - Function called each frame to generate pixel data
     pub fn new(
         model: M,
         config: Config,
@@ -145,9 +195,12 @@ where
             start_time: Instant::now(),
             mouse_position: (0.0, 0.0),
             frame_sender: maybe_tx,
+            key_handlers: HashMap::new(),
+            mouse_handlers: HashMap::new(),
         }
     }
 
+    /// Sets the window title and returns updated app
     pub fn set_title(self, title: &str) -> Self {
         Self {
             window_title: title.to_string(),
@@ -155,6 +208,9 @@ where
         }
     }
 
+    /// Starts the application's main loop
+    ///
+    /// Returns an error if the window creation or rendering fails
     pub fn run(&mut self) -> Result<(), Error> {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Poll);
@@ -172,12 +228,80 @@ where
         res.map_err(|e| Error::UserDefined(Box::new(e)))
     }
 
+    /// Returns the current x-coordinate of the mouse
     pub fn mouse_x(&self) -> f32 {
         self.mouse_position.0
     }
 
+    /// Returns the current y-coordinate of the mouse
     pub fn mouse_y(&self) -> f32 {
         self.mouse_position.1
+    }
+
+    /// Register a callback function for a specific key
+    ///
+    /// # Arguments
+    /// * `key` - The key to trigger the callback
+    /// * `handler` - The callback function to execute when the key is pressed
+    ///
+    /// # Example
+    /// ```
+    /// app.on_key(Key::Character("s"), |app| {
+    ///     println!("Saving frame...");
+    ///     // Save frame logic here
+    /// });
+    /// ```
+    pub fn on_key<F>(&mut self, key: Key, handler: F)
+    where
+        F: Fn(&mut App<M>) + 'static,
+    {
+        self.key_handlers.insert(key, Rc::new(handler));
+    }
+
+    /// Register a callback function for a specific mouse button
+    ///
+    /// # Arguments
+    /// * `button` - The mouse button to trigger the callback (Left, Right, Middle, etc.)
+    /// * `handler` - The callback function to execute when the button is pressed
+    ///
+    /// # Example
+    /// ```
+    /// app.on_mouse_press(MouseButton::Left, |app| {
+    ///     println!("Click at position: ({}, {})", app.mouse_x(), app.mouse_y());
+    /// });
+    /// ```
+    pub fn on_mouse_press<F>(&mut self, button: MouseButton, handler: F)
+    where
+        F: Fn(&mut App<M>) + 'static,
+    {
+        self.mouse_handlers.insert(button, Rc::new(handler));
+    }
+
+    // Update the keyboard input handling in window_event
+    fn handle_keyboard_input(
+        &mut self,
+        event: winit::event::KeyEvent,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+    ) {
+        if event.logical_key == Key::Named(NamedKey::Escape) {
+            event_loop.exit();
+            return;
+        }
+
+        // Get handler before calling to avoid borrow conflict
+        let handler = self.key_handlers.get(&event.logical_key).cloned();
+        if let Some(handler) = handler {
+            handler(self);
+        }
+    }
+
+    // Add mouse button handling
+    fn handle_mouse_input(&mut self, button: MouseButton) {
+        // Get handler before calling to avoid borrow conflict
+        let handler = self.mouse_handlers.get(&button).cloned();
+        if let Some(handler) = handler {
+            handler(self);
+        }
     }
 }
 
@@ -221,10 +345,7 @@ where
                 event_loop.exit();
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                // Exit on escape key
-                if event.logical_key == Key::Named(NamedKey::Escape) {
-                    event_loop.exit();
-                }
+                self.handle_keyboard_input(event, event_loop);
             }
             WindowEvent::CursorMoved { position, .. } => {
                 if let Some(window) = &self.window {
@@ -291,6 +412,11 @@ where
                     } else {
                         self.window.as_ref().unwrap().request_redraw();
                     }
+                }
+            }
+            WindowEvent::MouseInput { button, state, .. } => {
+                if state == winit::event::ElementState::Pressed {
+                    self.handle_mouse_input(button);
                 }
             }
             _ => (),
