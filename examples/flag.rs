@@ -1,5 +1,5 @@
 // Import required libraries for graphics, app management and input handling
-use artimate::core::{App, AppMode, Config, Error};
+use artimate::app::{App, AppMode, Config, Error};
 use wassily::prelude::*;
 use winit::keyboard::Key;
 

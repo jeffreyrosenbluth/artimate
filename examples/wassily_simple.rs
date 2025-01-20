@@ -1,4 +1,4 @@
-use artimate::core::{App, Config, Error};
+use artimate::app::{App, Config, Error};
 use wassily::prelude::*;
 
 fn main() -> Result<(), Error> {

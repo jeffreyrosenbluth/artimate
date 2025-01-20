@@ -1,4 +1,4 @@
-use artimate::core::{App, AppMode, Config, Error};
+use artimate::app::{App, AppMode, Config, Error};
 use noise::{NoiseFn, Value};
 use tiny_skia::*;
 

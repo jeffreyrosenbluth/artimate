@@ -1,4 +1,4 @@
-use artimate::core::{App, AppMode, Config, Error};
+use artimate::app::{App, AppMode, Config, Error};
 use wassily::prelude::*;
 
 // The model holds properties that are used to draw the scene.

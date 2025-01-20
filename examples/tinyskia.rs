@@ -1,4 +1,4 @@
-use artimate::core::{App, Config, Error, SketchMode};
+use artimate::app::{App, Config, Error, SketchMode};
 use tiny_skia::*;
 
 fn main() -> Result<(), Error> {
