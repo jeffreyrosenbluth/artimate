@@ -16,6 +16,10 @@ use winit::{
     window::{CursorIcon, Window, WindowId},
 };
 
+const DEFAULT_WINDOW_WIDTH: u32 = 1080;
+const DEFAULT_WINDOW_HEIGHT: u32 = 700;
+const DEFAULT_WINDOW_TITLE: &str = "Artimate";
+
 /// Configuration for the application window and rendering behavior
 #[derive(Debug)]
 pub struct Config {
@@ -120,7 +124,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new(1080, 700, false, true, 0)
+        Self::new(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, false, true, 0)
     }
 }
 
@@ -153,7 +157,7 @@ pub struct App<Mode = SketchMode, M = ()> {
     window: Option<Window>,
     /// Current mouse position as (x, y) coordinates
     pub mouse_position: (f32, f32),
-    frame_sender: Option<mpsc::Sender<(Box<[u8]>, String, u32, u32)>>,
+    frame_sender: Option<mpsc::Sender<(Vec<u8>, String, u32, u32)>>,
     /// Map of key handlers for custom key events
     key_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
     /// Map of mouse button handlers for custom mouse events
@@ -161,39 +165,54 @@ pub struct App<Mode = SketchMode, M = ()> {
     _mode: PhantomData<Mode>,
 }
 
+// Helper function for frame saving setup
+fn setup_frame_sender() -> Option<mpsc::Sender<(Vec<u8>, String, u32, u32)>> {
+    let (tx, rx) = mpsc::channel();
+
+    std::thread::spawn(move || {
+        while let Ok((frame_data, filename, width, height)) = rx.recv() {
+            if let Err(err) = save_frame(frame_data, filename, width, height) {
+                eprintln!("Failed to save frame: {}", err);
+            }
+        }
+    });
+
+    Some(tx)
+}
+
+fn save_frame(
+    frame_data: Vec<u8>,
+    filename: String,
+    width: u32,
+    height: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let file = std::fs::File::create(&filename)?;
+    let mut encoder = Encoder::new(file, width, height);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+
+    let mut writer = encoder.write_header()?;
+    writer.write_image_data(&frame_data)?;
+    Ok(())
+}
+
 /// Simple sketches that only need drawing functionality
 impl App<SketchMode> {
     /// Creates a simple sketch with just a draw function and config
     pub fn sketch(config: Config, draw: fn(&App<SketchMode, ()>, &()) -> Vec<u8>) -> Self {
-        let mut maybe_tx = None;
-        if config.frames_to_save > 0 {
-            let (tx, rx): (
-                mpsc::Sender<(Box<[u8]>, String, u32, u32)>,
-                mpsc::Receiver<(Box<[u8]>, String, u32, u32)>,
-            ) = mpsc::channel();
+        let maybe_tx = if config.frames_to_save > 0 {
+            setup_frame_sender()
+        } else {
+            None
+        };
 
-            // Spawn background thread for saving frames
-            std::thread::spawn(move || {
-                while let Ok((frame_data, filename, width, height)) = rx.recv() {
-                    // Create the PNG encoder
-                    let file = std::fs::File::create(&filename).unwrap();
-                    let mut encoder = Encoder::new(file, width, height);
-                    encoder.set_color(png::ColorType::Rgba);
-                    encoder.set_depth(png::BitDepth::Eight);
-
-                    let mut writer = encoder.write_header().unwrap();
-                    writer.write_image_data(&frame_data[..]).unwrap();
-                }
-            });
-            maybe_tx = Some(tx);
-        }
         Self {
             model: (),
             config,
             update: None,
             draw,
             time: 0.0,
-            window_title: "Artimate".to_string(),
+            window_title: DEFAULT_WINDOW_TITLE.to_string(),
             frame_count: 0,
             window: None,
             start_time: Instant::now(),
@@ -224,35 +243,19 @@ where
         update: fn(&App<AppMode, M>, M) -> M,
         draw: fn(&App<AppMode, M>, &M) -> Vec<u8>,
     ) -> Self {
-        let mut maybe_tx = None;
-        if config.frames_to_save > 0 {
-            let (tx, rx): (
-                mpsc::Sender<(Box<[u8]>, String, u32, u32)>,
-                mpsc::Receiver<(Box<[u8]>, String, u32, u32)>,
-            ) = mpsc::channel();
+        let maybe_tx = if config.frames_to_save > 0 {
+            setup_frame_sender()
+        } else {
+            None
+        };
 
-            // Spawn background thread for saving frames
-            std::thread::spawn(move || {
-                while let Ok((frame_data, filename, width, height)) = rx.recv() {
-                    // Create the PNG encoder
-                    let file = std::fs::File::create(&filename).unwrap();
-                    let mut encoder = Encoder::new(file, width, height);
-                    encoder.set_color(png::ColorType::Rgba);
-                    encoder.set_depth(png::BitDepth::Eight);
-
-                    let mut writer = encoder.write_header().unwrap();
-                    writer.write_image_data(&frame_data[..]).unwrap();
-                }
-            });
-            maybe_tx = Some(tx);
-        }
         Self {
             model,
             config,
             update: Some(update),
             draw,
             time: 0.0,
-            window_title: "Artimate".to_string(),
+            window_title: DEFAULT_WINDOW_TITLE.to_string(),
             frame_count: 0,
             window: None,
             start_time: Instant::now(),
@@ -379,22 +382,24 @@ where
 
                 if self.frame_count > 0 && self.frame_count <= self.config.frames_to_save {
                     if let Some(sender) = &self.frame_sender {
-                        let frame_data: Box<[u8]> = pixels.frame().to_vec().into();
-                        let downloads_dir =
-                            dirs::download_dir().expect("Could not find Downloads directory");
-                        let output_dir = downloads_dir.join("frames");
-                        std::fs::create_dir_all(&output_dir)
-                            .expect("Failed to create frames directory");
-                        let filename =
-                            output_dir.join(format!("frame_{:04}.png", self.frame_count));
-                        sender
-                            .send((
-                                frame_data,
-                                filename.to_string_lossy().to_string(),
-                                self.config.width,
-                                self.config.height,
-                            ))
-                            .unwrap();
+                        let frame_data: Vec<u8> = pixels.frame().to_vec();
+                        if let Some(downloads_dir) = dirs::download_dir() {
+                            let output_dir = downloads_dir.join("frames");
+                            if let Err(err) = std::fs::create_dir_all(&output_dir) {
+                                eprintln!("Failed to create frames directory: {}", err);
+                            } else {
+                                let filename =
+                                    output_dir.join(format!("frame_{:04}.png", self.frame_count));
+                                if let Err(err) = sender.send((
+                                    frame_data,
+                                    filename.to_string_lossy().to_string(),
+                                    self.config.width,
+                                    self.config.height,
+                                )) {
+                                    eprintln!("Failed to send frame data: {}", err);
+                                }
+                            }
+                        }
                     }
                 }
 
