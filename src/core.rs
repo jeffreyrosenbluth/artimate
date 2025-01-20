@@ -3,6 +3,7 @@ pub use pixels::Error;
 use pixels::{Pixels, SurfaceTexture};
 use png::Encoder;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::mpsc;
 use std::time::Instant;
@@ -11,7 +12,7 @@ use winit::{
     dpi::LogicalSize,
     event::{MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    keyboard::{Key, NamedKey},
+    keyboard::Key,
     window::{CursorIcon, Window, WindowId},
 };
 
@@ -74,6 +75,16 @@ impl Config {
         (self.width as f32, self.height as f32)
     }
 
+    /// Returns the width as a f32
+    pub fn w_f32(&self) -> f32 {
+        self.width as f32
+    }
+
+    /// Returns the height as a f32
+    pub fn h_f32(&self) -> f32 {
+        self.height as f32
+    }
+
     /// Sets the number of frames to save and returns updated config
     pub fn set_frames_to_save(self, frames_to_save: u32) -> Self {
         Self {
@@ -113,19 +124,24 @@ impl Default for Config {
     }
 }
 
+/// Marker type for simple sketches that only need drawing functionality
+pub struct SketchMode;
+/// Marker type for stateful sketches that need both model state and update functionality
+pub struct AppMode;
+
 /// Main application struct that handles window management and rendering
 ///
 /// # Type Parameters
 /// * `M` - The type of the model/state used in the application
-pub struct App<M = ()> {
+pub struct App<Mode = SketchMode, M = ()> {
     /// The application's model/state
     pub model: M,
     /// Configuration settings for the application
     pub config: Config,
     /// Function called each frame to update the model
-    pub update: fn(&App<M>, M) -> M,
+    pub update: Option<fn(&App<Mode, M>, M) -> M>,
     /// Function called each frame to generate pixel data
-    pub draw: fn(&App<M>, &M) -> Vec<u8>,
+    pub draw: fn(&App<Mode, M>, &M) -> Vec<u8>,
     /// Time elapsed since application start in seconds
     pub time: f32,
     /// Instant when the application started
@@ -139,12 +155,59 @@ pub struct App<M = ()> {
     pub mouse_position: (f32, f32),
     frame_sender: Option<mpsc::Sender<(Box<[u8]>, String, u32, u32)>>,
     /// Map of key handlers for custom key events
-    key_handlers: HashMap<Key, Rc<dyn Fn(&mut App<M>)>>,
+    key_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
     /// Map of mouse button handlers for custom mouse events
-    mouse_handlers: HashMap<MouseButton, Rc<dyn Fn(&mut App<M>)>>,
+    mouse_handlers: HashMap<MouseButton, Rc<dyn Fn(&mut App<Mode, M>)>>,
+    _mode: PhantomData<Mode>,
 }
 
-impl<M> App<M>
+/// Simple sketches that only need drawing functionality
+impl App<SketchMode> {
+    /// Creates a simple sketch with just a draw function and config
+    pub fn sketch(config: Config, draw: fn(&App<SketchMode, ()>, &()) -> Vec<u8>) -> Self {
+        let mut maybe_tx = None;
+        if config.frames_to_save > 0 {
+            let (tx, rx): (
+                mpsc::Sender<(Box<[u8]>, String, u32, u32)>,
+                mpsc::Receiver<(Box<[u8]>, String, u32, u32)>,
+            ) = mpsc::channel();
+
+            // Spawn background thread for saving frames
+            std::thread::spawn(move || {
+                while let Ok((frame_data, filename, width, height)) = rx.recv() {
+                    // Create the PNG encoder
+                    let file = std::fs::File::create(&filename).unwrap();
+                    let mut encoder = Encoder::new(file, width, height);
+                    encoder.set_color(png::ColorType::Rgba);
+                    encoder.set_depth(png::BitDepth::Eight);
+
+                    let mut writer = encoder.write_header().unwrap();
+                    writer.write_image_data(&frame_data[..]).unwrap();
+                }
+            });
+            maybe_tx = Some(tx);
+        }
+        Self {
+            model: (),
+            config,
+            update: None,
+            draw,
+            time: 0.0,
+            window_title: "Artimate".to_string(),
+            frame_count: 0,
+            window: None,
+            start_time: Instant::now(),
+            mouse_position: (0.0, 0.0),
+            frame_sender: maybe_tx,
+            key_handlers: HashMap::new(),
+            mouse_handlers: HashMap::new(),
+            _mode: PhantomData,
+        }
+    }
+}
+
+/// Stateful sketches that need both model state and update functionality
+impl<M> App<AppMode, M>
 where
     M: Clone,
 {
@@ -155,11 +218,11 @@ where
     /// * `config` - Configuration settings
     /// * `update` - Function called each frame to update the model
     /// * `draw` - Function called each frame to generate pixel data
-    pub fn new(
+    pub fn app(
         model: M,
         config: Config,
-        update: fn(&App<M>, M) -> M,
-        draw: fn(&App<M>, &M) -> Vec<u8>,
+        update: fn(&App<AppMode, M>, M) -> M,
+        draw: fn(&App<AppMode, M>, &M) -> Vec<u8>,
     ) -> Self {
         let mut maybe_tx = None;
         if config.frames_to_save > 0 {
@@ -186,7 +249,7 @@ where
         Self {
             model,
             config,
-            update,
+            update: Some(update),
             draw,
             time: 0.0,
             window_title: "Artimate".to_string(),
@@ -197,9 +260,13 @@ where
             frame_sender: maybe_tx,
             key_handlers: HashMap::new(),
             mouse_handlers: HashMap::new(),
+            _mode: PhantomData,
         }
     }
+}
 
+/// Common methods for both sketch and app modes
+impl<Mode, M: Clone> App<Mode, M> {
     /// Sets the window title and returns updated app
     pub fn set_title(self, title: &str) -> Self {
         Self {
@@ -237,75 +304,10 @@ where
     pub fn mouse_y(&self) -> f32 {
         self.mouse_position.1
     }
-
-    /// Register a callback function for a specific key
-    ///
-    /// # Arguments
-    /// * `key` - The key to trigger the callback
-    /// * `handler` - The callback function to execute when the key is pressed
-    ///
-    /// # Example
-    /// ```
-    /// app.on_key(Key::Character("s"), |app| {
-    ///     println!("Saving frame...");
-    ///     // Save frame logic here
-    /// });
-    /// ```
-    pub fn on_key<F>(&mut self, key: Key, handler: F)
-    where
-        F: Fn(&mut App<M>) + 'static,
-    {
-        self.key_handlers.insert(key, Rc::new(handler));
-    }
-
-    /// Register a callback function for a specific mouse button
-    ///
-    /// # Arguments
-    /// * `button` - The mouse button to trigger the callback (Left, Right, Middle, etc.)
-    /// * `handler` - The callback function to execute when the button is pressed
-    ///
-    /// # Example
-    /// ```
-    /// app.on_mouse_press(MouseButton::Left, |app| {
-    ///     println!("Click at position: ({}, {})", app.mouse_x(), app.mouse_y());
-    /// });
-    /// ```
-    pub fn on_mouse_press<F>(&mut self, button: MouseButton, handler: F)
-    where
-        F: Fn(&mut App<M>) + 'static,
-    {
-        self.mouse_handlers.insert(button, Rc::new(handler));
-    }
-
-    // Update the keyboard input handling in window_event
-    fn handle_keyboard_input(
-        &mut self,
-        event: winit::event::KeyEvent,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-    ) {
-        if event.logical_key == Key::Named(NamedKey::Escape) {
-            event_loop.exit();
-            return;
-        }
-
-        // Get handler before calling to avoid borrow conflict
-        let handler = self.key_handlers.get(&event.logical_key).cloned();
-        if let Some(handler) = handler {
-            handler(self);
-        }
-    }
-
-    // Add mouse button handling
-    fn handle_mouse_input(&mut self, button: MouseButton) {
-        // Get handler before calling to avoid borrow conflict
-        let handler = self.mouse_handlers.get(&button).cloned();
-        if let Some(handler) = handler {
-            handler(self);
-        }
-    }
 }
 
-impl<M> ApplicationHandler for App<M>
+/// Implementation of ApplicationHandler for App
+impl<Mode, M> ApplicationHandler for App<Mode, M>
 where
     M: Clone,
 {
@@ -401,7 +403,9 @@ where
                     return;
                 }
 
-                self.model = (self.update)(&self, self.model.clone());
+                if let Some(update) = self.update {
+                    self.model = update(&self, self.model.clone());
+                }
                 self.frame_count += 1;
 
                 if !self.config.no_loop {
@@ -421,5 +425,62 @@ where
             }
             _ => (),
         }
+    }
+}
+
+/// Handles keyboard input for the application
+impl<Mode, M> App<Mode, M>
+where
+    M: Clone,
+{
+    fn handle_keyboard_input(
+        &mut self,
+        event: winit::event::KeyEvent,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+    ) {
+        let handler = self.key_handlers.get(&event.logical_key).cloned();
+        if let Some(handler) = handler {
+            handler(self);
+        }
+    }
+
+    fn handle_mouse_input(&mut self, button: MouseButton) {
+        let handler = self.mouse_handlers.get(&button).cloned();
+        if let Some(handler) = handler {
+            handler(self);
+        }
+    }
+}
+
+/// Handles key and mouse events for stateful sketches
+impl<M: Clone> App<AppMode, M> {
+    pub fn on_key<F>(&mut self, key: Key, handler: F)
+    where
+        F: Fn(&mut App<AppMode, M>) + 'static,
+    {
+        self.key_handlers.insert(key, Rc::new(handler));
+    }
+
+    pub fn on_mouse_press<F>(&mut self, button: MouseButton, handler: F)
+    where
+        F: Fn(&mut App<AppMode, M>) + 'static,
+    {
+        self.mouse_handlers.insert(button, Rc::new(handler));
+    }
+}
+
+impl App<SketchMode> {
+    pub fn on_key<F>(&mut self, key: Key, handler: F)
+    where
+        F: Fn(&mut App<SketchMode, ()>) + 'static,
+    {
+        self.key_handlers.insert(key, Rc::new(handler));
+    }
+
+    pub fn on_mouse_press<F>(&mut self, button: MouseButton, handler: F)
+    where
+        F: Fn(&mut App<SketchMode, ()>) + 'static,
+    {
+        self.mouse_handlers.insert(button, Rc::new(handler));
     }
 }

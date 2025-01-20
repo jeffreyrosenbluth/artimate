@@ -4,12 +4,8 @@ use wassily::prelude::*;
 fn main() -> Result<(), Error> {
     // Default size is 1080 x 700.
     let config = Config::default();
-    let mut app = App::new((), config, update, draw).set_title("Ball");
+    let mut app = App::sketch(config, draw).set_title("Ball");
     app.run()
-}
-
-fn update(_app: &App<()>, _model: ()) -> () {
-    ()
 }
 
 fn draw(app: &App, _model: &()) -> Vec<u8> {

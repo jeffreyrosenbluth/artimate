@@ -1,4 +1,4 @@
-use artimate::core::{App, Config, Error};
+use artimate::core::{App, AppMode, Config, Error};
 use wassily::prelude::*;
 
 // The model holds properties that are used to draw the scene.
@@ -51,12 +51,12 @@ fn main() -> Result<(), Error> {
     let model = Model::default();
     // Default size is 1080 x 700.
     let config = Config::default().set_frames_to_save(1508);
-    let mut app = App::new(model, config, update, draw).set_title("Sphere");
+    let mut app = App::app(model, config, update, draw).set_title("Sphere");
     app.run()
 }
 
 // The update function is called on every frame.
-fn update(app: &App<Model>, model: Model) -> Model {
+fn update(app: &App<AppMode, Model>, model: Model) -> Model {
     let v = map_range(app.mouse_y(), 0.0, app.config.height as f32, 0.35, 0.75);
     let u = map_range(app.mouse_y(), 0.0, app.config.height as f32, 0.3, 0.7);
     let mut stops1 = model.stops_1;
@@ -72,7 +72,7 @@ fn update(app: &App<Model>, model: Model) -> Model {
 
 // Draw each planet
 fn draw_planet(
-    app: &App<Model>,
+    app: &App<AppMode, Model>,
     model: &Model,
     // The position of the planet
     pos: Point,
@@ -112,7 +112,7 @@ fn draw_planet(
         .draw(canvas);
 }
 
-fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
+fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     // It's convenient to have both the width and height as u32 and  f32
     let (width, height) = app.config.wh();
     let (w_f32, h_f32) = app.config.wh_f32();

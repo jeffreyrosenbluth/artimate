@@ -1,20 +1,13 @@
-use artimate::core::{App, Config, Error};
+use artimate::core::{App, Config, Error, SketchMode};
 use tiny_skia::*;
 
-#[derive(Clone)]
-struct Model;
 fn main() -> Result<(), Error> {
-    let model = Model;
     let config = Config::with_dims(500, 500);
-    let mut app = App::new(model, config, update, draw);
+    let mut app = App::sketch(config, draw);
     app.run()
 }
 
-fn update(_app: &App<Model>, model: Model) -> Model {
-    model
-}
-
-fn draw(app: &App<Model>, _model: &Model) -> Vec<u8> {
+fn draw(app: &App<SketchMode, ()>, _model: &()) -> Vec<u8> {
     let mut pixmap = Pixmap::new(app.config.width, app.config.height).unwrap();
     let mut paint1 = Paint::default();
     paint1.set_color_rgba8(50, 107, 160, 255);

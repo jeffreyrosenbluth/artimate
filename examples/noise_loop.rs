@@ -1,5 +1,5 @@
-use artimate::core::{App, Config, Error};
-use noise::{NoiseFn, Perlin, RidgedMulti, Value};
+use artimate::core::{App, AppMode, Config, Error};
+use noise::{NoiseFn, Value};
 use tiny_skia::*;
 
 const TAU: f32 = std::f32::consts::PI * 2.0;
@@ -31,10 +31,6 @@ impl Default for Model {
     }
 }
 
-fn update(_app: &App<Model>, model: Model) -> Model {
-    model
-}
-
 // Create a periodic noise function.
 fn periodic_noise(model: &Model, p: f32, seed: f32, x: f32, y: f32) -> f32 {
     let u = seed + (TAU * p).cos();
@@ -48,7 +44,7 @@ fn periodic_noise(model: &Model, p: f32, seed: f32, x: f32, y: f32) -> f32 {
 }
 
 // Offset for the the first 2 parameters of the 4d noise function.
-fn offset(app: &App<Model>, model: &Model, x: f32, y: f32) -> f32 {
+fn offset(app: &App<AppMode, Model>, model: &Model, x: f32, y: f32) -> f32 {
     let (w, h) = app.config.wh_f32();
     let dist2 = (x - w / 2.0) * (x - w / 2.0) + (y - h / 2.0) * (y - h / 2.0);
     model.factor * dist2.sqrt()
@@ -63,7 +59,7 @@ pub fn point(pixmap: &mut Pixmap, x: f32, y: f32, color: Color) {
 }
 
 // Draw a single frame.
-fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
+fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     let mut pixmap = Pixmap::new(app.config.width, app.config.height).unwrap();
     let t = (app.frame_count - 1) as f32 / model.num_frames as f32;
     for i in 0..model.m {
@@ -98,6 +94,6 @@ fn draw(app: &App<Model>, model: &Model) -> Vec<u8> {
 fn main() -> Result<(), Error> {
     let model = Model::default();
     let config = Config::with_dims(700, 700).set_frames_to_save(50);
-    let mut app = App::new(model, config, update, draw).set_title("Noise Loop");
+    let mut app = App::app(model, config, |_, model| model, draw).set_title("Noise Loop");
     app.run()
 }
