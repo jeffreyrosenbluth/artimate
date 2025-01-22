@@ -82,6 +82,11 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
             .stroke_color(*WHITE)
             .stroke_weight(2.5)
             .draw(&mut canvas);
+        Shape::new()
+            .circle(p1[p1.len() - 1], 3.0)
+            .fill_color(*RED)
+            .no_stroke()
+            .draw(&mut canvas);
     } else {
         for i in 0..n2 {
             let j = i as usize;
