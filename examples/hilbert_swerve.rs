@@ -16,7 +16,7 @@ impl Default for Model {
             order: 6,
             noise: Perlin::default(),
             scale: 0.03,
-            factor: 10.0,
+            factor: 0.0,
             margin: 125.0,
         }
     }
@@ -25,9 +25,10 @@ impl Default for Model {
 fn main() -> Result<(), Error> {
     let model = Model::default();
     let n = 2u32.pow(model.order);
-    let config = Config::with_dims(1080, 1080).set_frames(n * n);
-    // .set_frames_to_save(n * n);
-    let mut app = App::app(model, config, |_, model| model, draw).set_title("Hilbert");
+    let config = Config::with_dims(1080, 1080)
+        .set_frames(n * n)
+        .set_frames_to_save(n * n);
+    let mut app = App::app(model, config, |_, model| model, draw).set_title("Hilbert Swerve");
     app.run()
 }
 
@@ -62,14 +63,21 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
         path[j] = pt(path[j].x + model.margin, path[j].y + model.margin);
     }
 
-    let t = smoother_step(app.frame_count as f32 / app.config.frames.unwrap() as f32);
-    let color = (*CORNFLOWERBLUE).lerp(&(*PINK), t);
-
+    let p1 = &path[0..app.frame_count as usize / 2].to_vec();
     Shape::new()
-        .points(&path)
+        .points(&p1)
+        .cubic()
         .no_fill()
-        .stroke_color(color)
-        .stroke_weight(2.0)
+        .stroke_color(*WHITE)
+        .stroke_weight(3.0)
+        .draw(&mut canvas);
+
+    let p2 = &path[app.frame_count as usize / 2..app.frame_count as usize].to_vec();
+    Shape::new()
+        .points(&p2)
+        .no_fill()
+        .stroke_color(*WHITE)
+        .stroke_weight(3.0)
         .draw(&mut canvas);
 
     canvas.take()

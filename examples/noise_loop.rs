@@ -4,6 +4,13 @@ use tiny_skia::*;
 
 const TAU: f32 = std::f32::consts::PI * 2.0;
 
+fn main() -> Result<(), Error> {
+    let model = Model::default();
+    let config = Config::with_dims(700, 700).set_frames_to_save(50);
+    let mut app = App::app(model, config, |_, model| model, draw).set_title("Noise Loop");
+    app.run()
+}
+
 fn map_range(x: f32, in_min: f32, in_max: f32, out_min: f32, out_max: f32) -> f32 {
     (x - in_min) / (in_max - in_min) * (out_max - out_min) + out_min
 }
@@ -89,11 +96,4 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
         }
     }
     pixmap.take()
-}
-
-fn main() -> Result<(), Error> {
-    let model = Model::default();
-    let config = Config::with_dims(700, 700).set_frames_to_save(50);
-    let mut app = App::app(model, config, |_, model| model, draw).set_title("Noise Loop");
-    app.run()
 }
