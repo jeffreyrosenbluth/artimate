@@ -13,7 +13,7 @@ struct Model {
 impl Default for Model {
     fn default() -> Self {
         Self {
-            order: 6,
+            order: 7,
             noise: Perlin::default(),
             scale: 0.03,
             factor: 10.0,
@@ -38,7 +38,6 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
 
     let n = 2u32.pow(model.order);
     let n2 = n * n;
-    let m2 = n * n * 3 / 2;
     let mut path = vec![];
 
     if app.frame_count < n2 {
@@ -81,11 +80,6 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
             .no_fill()
             .stroke_color(*WHITE)
             .stroke_weight(2.5)
-            .draw(&mut canvas);
-        Shape::new()
-            .circle(p1[p1.len() - 1], 3.0)
-            .fill_color(*RED)
-            .no_stroke()
             .draw(&mut canvas);
     } else {
         for i in 0..n2 {
