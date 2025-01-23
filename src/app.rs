@@ -2,7 +2,7 @@ use dirs;
 pub use pixels::Error;
 use pixels::{Pixels, SurfaceTexture};
 use png::Encoder;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::mpsc;
@@ -124,7 +124,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, false, true, 0)
+        Self::new(1080, 700, false, true, 0)
     }
 }
 
@@ -163,6 +163,9 @@ pub struct App<Mode = SketchMode, M = ()> {
     /// Map of mouse button handlers for custom mouse events
     mouse_handlers: HashMap<MouseButton, Rc<dyn Fn(&mut App<Mode, M>)>>,
     _mode: PhantomData<Mode>,
+    key_press_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
+    key_release_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
+    keys_down: HashSet<Key>,
 }
 
 // Helper function for frame saving setup
@@ -221,6 +224,9 @@ impl App<SketchMode> {
             key_handlers: HashMap::new(),
             mouse_handlers: HashMap::new(),
             _mode: PhantomData,
+            key_press_handlers: HashMap::new(),
+            key_release_handlers: HashMap::new(),
+            keys_down: HashSet::new(),
         }
     }
 }
@@ -264,6 +270,9 @@ where
             key_handlers: HashMap::new(),
             mouse_handlers: HashMap::new(),
             _mode: PhantomData,
+            key_press_handlers: HashMap::new(),
+            key_release_handlers: HashMap::new(),
+            keys_down: HashSet::new(),
         }
     }
 }
@@ -443,9 +452,28 @@ where
         event: winit::event::KeyEvent,
         _event_loop: &winit::event_loop::ActiveEventLoop,
     ) {
-        let handler = self.key_handlers.get(&event.logical_key).cloned();
-        if let Some(handler) = handler {
-            handler(self);
+        match event.state {
+            winit::event::ElementState::Pressed => {
+                self.keys_down.insert(event.logical_key.clone());
+                // Handle one-time press events
+                if let Some(handler) = self.key_press_handlers.get(&event.logical_key).cloned() {
+                    handler(self);
+                }
+            }
+            winit::event::ElementState::Released => {
+                self.keys_down.remove(&event.logical_key);
+                // Handle release events
+                if let Some(handler) = self.key_release_handlers.get(&event.logical_key).cloned() {
+                    handler(self);
+                }
+            }
+        }
+
+        // Handle continuous key holding in the update/draw loop
+        if event.state == winit::event::ElementState::Pressed {
+            if let Some(handler) = self.key_handlers.get(&event.logical_key).cloned() {
+                handler(self);
+            }
         }
     }
 
@@ -459,11 +487,25 @@ where
 
 /// Handles key and mouse events for stateful sketches
 impl<M: Clone> App<AppMode, M> {
-    pub fn on_key<F>(&mut self, key: Key, handler: F)
+    pub fn on_key_held<F>(&mut self, key: Key, handler: F)
     where
         F: Fn(&mut App<AppMode, M>) + 'static,
     {
         self.key_handlers.insert(key, Rc::new(handler));
+    }
+
+    pub fn on_key_press<F>(&mut self, key: Key, handler: F)
+    where
+        F: Fn(&mut App<AppMode, M>) + 'static,
+    {
+        self.key_press_handlers.insert(key, Rc::new(handler));
+    }
+
+    pub fn on_key_release<F>(&mut self, key: Key, handler: F)
+    where
+        F: Fn(&mut App<AppMode, M>) + 'static,
+    {
+        self.key_release_handlers.insert(key, Rc::new(handler));
     }
 
     pub fn on_mouse_press<F>(&mut self, button: MouseButton, handler: F)
@@ -475,11 +517,25 @@ impl<M: Clone> App<AppMode, M> {
 }
 
 impl App<SketchMode> {
-    pub fn on_key<F>(&mut self, key: Key, handler: F)
+    pub fn on_key_held<F>(&mut self, key: Key, handler: F)
     where
         F: Fn(&mut App<SketchMode, ()>) + 'static,
     {
         self.key_handlers.insert(key, Rc::new(handler));
+    }
+
+    pub fn on_key_press<F>(&mut self, key: Key, handler: F)
+    where
+        F: Fn(&mut App<SketchMode, ()>) + 'static,
+    {
+        self.key_press_handlers.insert(key, Rc::new(handler));
+    }
+
+    pub fn on_key_release<F>(&mut self, key: Key, handler: F)
+    where
+        F: Fn(&mut App<SketchMode, ()>) + 'static,
+    {
+        self.key_release_handlers.insert(key, Rc::new(handler));
     }
 
     pub fn on_mouse_press<F>(&mut self, button: MouseButton, handler: F)

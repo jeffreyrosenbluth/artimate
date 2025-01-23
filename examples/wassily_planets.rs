@@ -1,5 +1,6 @@
 use artimate::app::{App, AppMode, Config, Error};
 use wassily::prelude::*;
+use winit::keyboard::Key;
 
 // The model holds properties that are used to draw the scene.
 // These properties can be changed in the update function
@@ -19,6 +20,10 @@ struct Model {
     size_factor: f32,
     // The minimum size of the planets
     size_min: f32,
+    // The number of stars
+    num_stars: usize,
+    // Toggle the mouse controls
+    mouse_controls: bool,
 }
 
 impl Default for Model {
@@ -36,13 +41,15 @@ impl Default for Model {
             ],
             stops_2: vec![
                 GradientStop::new(0.0, *WHITE),
-                GradientStop::new(0.30, grays(70)),
+                GradientStop::new(0.35, grays(70)),
                 GradientStop::new(0.5, *DARKSLATEGRAY),
-                GradientStop::new(0.70, *INDIANRED),
+                GradientStop::new(0.75, *INDIANRED),
                 GradientStop::new(1.0, grays(25)),
             ],
             size_factor: 1.25,
             size_min: 0.6,
+            num_stars: 100,
+            mouse_controls: true,
         }
     }
 }
@@ -52,20 +59,33 @@ fn main() -> Result<(), Error> {
     // Default size is 1080 x 700.
     let config = Config::default().set_frames_to_save(1508);
     let mut app = App::app(model, config, update, draw).set_title("Sphere");
+    let key = Key::Character("t".into());
+    app.on_key_press(key, move |app| {
+        app.model.mouse_controls = !app.model.mouse_controls;
+    });
     app.run()
 }
 
 // The update function is called on every frame.
 fn update(app: &App<AppMode, Model>, model: Model) -> Model {
+    if !model.mouse_controls {
+        return model;
+    };
     let v = map_range(app.mouse_y(), 0.0, app.config.height as f32, 0.35, 0.75);
-    let u = map_range(app.mouse_y(), 0.0, app.config.height as f32, 0.3, 0.7);
+    let u = map_range(app.mouse_y(), 0.0, app.config.height as f32, 0.35, 0.75);
     let mut stops1 = model.stops_1;
     let mut stops2 = model.stops_2;
     stops1[2] = GradientStop::new(v, *INDIANRED);
     stops2[2] = GradientStop::new(u, *DARKSLATEGRAY);
+    let num_stars = if app.mouse_x() < 1.0 {
+        100
+    } else {
+        app.mouse_x() as usize
+    };
     Model {
         stops_1: stops1,
         stops_2: stops2,
+        num_stars,
         ..model
     }
 }
@@ -126,12 +146,7 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     // Draw the background stars at random locations.
     let mut rng = SmallRng::seed_from_u64(0);
     let mut star_color = *WHITE;
-    let num_stars = if app.mouse_x() < 1.0 {
-        100
-    } else {
-        app.mouse_x() as usize
-    };
-    for _ in 0..num_stars {
+    for _ in 0..model.num_stars {
         let x = rng.gen_range(0.0..w_f32);
         let y = rng.gen_range(0.0..h_f32);
         let r = rng.gen_range(0.5..2.0);

@@ -13,7 +13,7 @@ fn main() -> Result<(), Error> {
     // Higher octaves create more detailed noise patterns
     for octaves in 1..=8 {
         let key = Key::Character(octaves.to_string().into());
-        app.on_key(key, move |app| {
+        app.on_key_press(key, move |app| {
             app.model.noise = RidgedMulti::default().set_octaves(octaves);
         });
     }
