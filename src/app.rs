@@ -124,7 +124,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new(1080, 700, false, true, 0)
+        Self::new(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, false, true, 0)
     }
 }
 
