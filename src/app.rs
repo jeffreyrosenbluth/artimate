@@ -16,9 +16,9 @@ use winit::{
     window::{CursorIcon, Window, WindowId},
 };
 
-const DEFAULT_WINDOW_WIDTH: u32 = 1080;
-const DEFAULT_WINDOW_HEIGHT: u32 = 700;
-const DEFAULT_WINDOW_TITLE: &str = "Artimate";
+const DEFAULT_WIDTH: u32 = 1080;
+const DEFAULT_HEIGHT: u32 = 700;
+const DEFAULT_TITLE: &str = "Artimate";
 
 /// Configuration for the application window and rendering behavior
 #[derive(Debug)]
@@ -124,7 +124,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, false, true, 0)
+        Self::new(DEFAULT_WIDTH, DEFAULT_HEIGHT, false, true, 0)
     }
 }
 
@@ -162,10 +162,10 @@ pub struct App<Mode = SketchMode, M = ()> {
     key_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
     /// Map of mouse button handlers for custom mouse events
     mouse_handlers: HashMap<MouseButton, Rc<dyn Fn(&mut App<Mode, M>)>>,
-    _mode: PhantomData<Mode>,
     key_press_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
     key_release_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
     keys_down: HashSet<Key>,
+    _mode: PhantomData<Mode>,
 }
 
 // Helper function for frame saving setup
@@ -215,7 +215,7 @@ impl App<SketchMode> {
             update: None,
             draw,
             time: 0.0,
-            window_title: DEFAULT_WINDOW_TITLE.to_string(),
+            window_title: DEFAULT_TITLE.to_string(),
             frame_count: 0,
             window: None,
             start_time: Instant::now(),
@@ -261,7 +261,7 @@ where
             update: Some(update),
             draw,
             time: 0.0,
-            window_title: DEFAULT_WINDOW_TITLE.to_string(),
+            window_title: DEFAULT_TITLE.to_string(),
             frame_count: 0,
             window: None,
             start_time: Instant::now(),

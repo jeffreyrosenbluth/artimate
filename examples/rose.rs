@@ -3,7 +3,13 @@ use wassily::prelude::*;
 
 fn main() -> Result<(), Error> {
     let model = Model::default();
-    let config = Config::with_dims(700, 700).set_frames(model.lines);
+    let config = if model.animate {
+        Config::with_dims(700, 700)
+            .set_frames(model.lines)
+            .set_frames_to_save(model.lines)
+    } else {
+        Config::with_dims(700, 700).no_loop()
+    };
     let mut app = App::app(model, config, |_, model| model, draw).set_title("Maurer Rose");
     app.run()
 }
@@ -16,16 +22,24 @@ pub struct Model {
     degrees: f32,
     // The number of lines to draw
     lines: u32,
+    stroke_weight: f32,
+    animate: bool,
 }
 
 impl Default for Model {
     fn default() -> Self {
         Self {
-            petals: 2.0,
-            degrees: 43.0,
-            lines: 1800,
+            petals: 3.0,
+            degrees: 37.0,
+            lines: 6400,
+            stroke_weight: 0.25,
+            animate: false,
         }
     }
+}
+
+fn f(t: f32) -> f32 {
+    1.0 * (0.5 * t.cos() + 0.3 * (2.0 * t).cos() + 0.2 * (3.0 * t).cos())
 }
 
 fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
@@ -35,10 +49,16 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     let mut vertices = vec![];
     let size = app.config.w_f32() / 2.2;
 
-    for theta in 0..=app.frame_count {
+    let n = if model.animate {
+        app.frame_count
+    } else {
+        model.lines - 1
+    };
+    for theta in 0..=n {
         // the + 0.01 is to prevent periodicity
         let k = theta as f32 * std::f32::consts::PI * (model.degrees + 0.01) / 180.0;
-        let r = size * (model.petals * k).sin();
+        // let r = size * (model.petals * k).sin();
+        let r = size * f(model.petals * k);
         vertices.push(pt(r * k.cos(), r * k.sin()));
     }
 
@@ -54,12 +74,12 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     Shape::new()
         .no_fill()
         .stroke_color(Color::from_rgba8(255, 255, 255, 100))
-        .stroke_weight(0.5)
+        .stroke_weight(model.stroke_weight)
         .points(&vertices)
         .cartesian(app.config.width, app.config.height)
         .draw(&mut canvas);
 
-    if vertices.len() > 2 && app.frame_count < model.lines {
+    if model.animate && vertices.len() > 2 && app.frame_count < model.lines {
         Shape::new()
             .line(
                 vertices[app.frame_count as usize - 2],
