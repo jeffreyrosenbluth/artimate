@@ -30,16 +30,54 @@ impl Default for Model {
     fn default() -> Self {
         Self {
             petals: 3.0,
-            degrees: 37.0,
-            lines: 6400,
+            degrees: 50.0,
+            lines: 3600,
             stroke_weight: 0.25,
             animate: false,
         }
     }
 }
 
-fn f(t: f32) -> f32 {
-    1.0 * (0.5 * t.cos() + 0.3 * (2.0 * t).cos() + 0.2 * (3.0 * t).cos())
+struct F {
+    a0: f32,
+    a1: f32,
+    a2: f32,
+    a3: f32,
+    b1: f32,
+    b2: f32,
+    b3: f32,
+}
+
+#[allow(dead_code)]
+impl F {
+    fn new(a0: f32, a1: f32, a2: f32, a3: f32, b1: f32, b2: f32, b3: f32) -> Self {
+        Self {
+            a0,
+            a1,
+            a2,
+            a3,
+            b1,
+            b2,
+            b3,
+        }
+    }
+    fn c(a1: f32, a2: f32, a3: f32) -> Self {
+        Self::new(0.0, a1, a2, a3, 0.0, 0.0, 0.0)
+    }
+
+    fn s(b1: f32, b2: f32, b3: f32) -> Self {
+        Self::new(0.0, 0.0, 0.0, 0.0, b1, b2, b3)
+    }
+    fn eval(&self, scale: f32, t: f32) -> f32 {
+        scale
+            * (self.a0
+                + self.a1 * t.cos()
+                + self.a2 * (2.0 * t).cos()
+                + self.a3 * (3.0 * t).cos()
+                + self.b1 * t.sin()
+                + self.b2 * (2.0 * t).sin()
+                + self.b3 * (3.0 * t).sin())
+    }
 }
 
 fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
@@ -54,11 +92,12 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     } else {
         model.lines - 1
     };
+    let fourier = F::new(0.0, 0.5, 0.3, 0.2, 0.5, 0.3, 0.2);
     for theta in 0..=n {
         // the + 0.01 is to prevent periodicity
         let k = theta as f32 * std::f32::consts::PI * (model.degrees + 0.01) / 180.0;
         // let r = size * (model.petals * k).sin();
-        let r = size * f(model.petals * k);
+        let r = size * fourier.eval(0.75, model.petals * k);
         vertices.push(pt(r * k.cos(), r * k.sin()));
     }
 
