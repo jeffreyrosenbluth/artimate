@@ -1,14 +1,17 @@
 use artimate::app::{App, AppMode, Config, Error};
+use num_complex::Complex;
 use wassily::prelude::*;
+
+const LINES: u32 = 3600;
 
 fn main() -> Result<(), Error> {
     let model = Model::default();
     let config = if model.animate {
         Config::with_dims(700, 700)
-            .set_frames(model.lines)
-            .set_frames_to_save(model.lines)
+            .set_frames(LINES * model.density)
+            .set_frames_to_save(LINES * model.density)
     } else {
-        Config::with_dims(700, 700).no_loop()
+        Config::with_dims(700, 700).no_loop().set_frames_to_save(1)
     };
     let mut app = App::app(model, config, |_, model| model, draw).set_title("Maurer Rose");
     app.run()
@@ -20,63 +23,72 @@ pub struct Model {
     petals: f32,
     // The angle in degrees
     degrees: f32,
-    // The number of lines to draw
-    lines: u32,
+    // The number of lines to draw is `LINES * density
+    density: u32,
+    // Line thickness
     stroke_weight: f32,
+    // Whether to animate the rose
     animate: bool,
+    // Rotation angle, counterclockwise
+    rotate: f32,
+    // Scale factor
+    scale: f32,
 }
 
 impl Default for Model {
     fn default() -> Self {
         Self {
-            petals: 3.0,
-            degrees: 50.0,
-            lines: 3600,
+            petals: 3.25,
+            degrees: 37.0,
+            density: 2,
             stroke_weight: 0.25,
             animate: false,
+            rotate: 0.0,
+            scale: 1.0,
         }
     }
 }
 
 struct F {
-    a0: f32,
-    a1: f32,
-    a2: f32,
-    a3: f32,
-    b1: f32,
-    b2: f32,
-    b3: f32,
+    an: Vec<f32>,
+    bn: Vec<f32>,
 }
 
 #[allow(dead_code)]
 impl F {
-    fn new(a0: f32, a1: f32, a2: f32, a3: f32, b1: f32, b2: f32, b3: f32) -> Self {
+    fn new(an: &[f32], bn: &[f32]) -> Self {
         Self {
-            a0,
-            a1,
-            a2,
-            a3,
-            b1,
-            b2,
-            b3,
+            an: an.to_vec(),
+            bn: bn.to_vec(),
         }
     }
-    fn c(a1: f32, a2: f32, a3: f32) -> Self {
-        Self::new(0.0, a1, a2, a3, 0.0, 0.0, 0.0)
+
+    fn with_complex(cn: &[Complex<f32>]) -> Self {
+        let an: Vec<_> = cn.iter().map(|c| c.re).collect();
+        let bn: Vec<_> = cn.iter().map(|c| c.im).collect();
+        Self::new(&an, &bn)
     }
 
-    fn s(b1: f32, b2: f32, b3: f32) -> Self {
-        Self::new(0.0, 0.0, 0.0, 0.0, b1, b2, b3)
+    fn c(an: &[f32]) -> Self {
+        Self::new(an, &[])
     }
+
+    fn s(bn: &[f32]) -> Self {
+        Self::new(&[], bn)
+    }
+
     fn eval(&self, scale: f32, t: f32) -> f32 {
-        scale
-            * (self.a0
-                + self.a1 * t.cos()
-                + self.a2 * (2.0 * t).cos()
-                + self.a3 * (3.0 * t).cos()
-                + self.b1 * t.sin()
-                + self.b2 * (2.0 * t).sin()
-                + self.b3 * (3.0 * t).sin())
+        let mut m = 0.0;
+        let mut radius = 0.0;
+        for (i, a) in self.an.iter().enumerate() {
+            m += a.abs();
+            radius += a * ((i as f32) * t).cos();
+        }
+        for (i, b) in self.bn.iter().enumerate() {
+            m += b.abs();
+            radius += b * ((1.0 + i as f32) * t).sin();
+        }
+        scale / m * radius
     }
 }
 
@@ -90,20 +102,37 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     let n = if model.animate {
         app.frame_count
     } else {
-        model.lines - 1
+        LINES * model.density - 1
     };
-    let fourier = F::new(0.0, 0.5, 0.3, 0.2, 0.5, 0.3, 0.2);
+
+    // let fourier = F::new(
+    //     &[],
+    //     &[
+    //         1.0,
+    //         0.0,
+    //         1.0 / 3.0,
+    //         0.0,
+    //         1.0 / 5.0,
+    //         // 0.0,
+    //         // 1.0 / 7.0,
+    //         // 0.0,
+    //         // 1.0 / 9.0,
+    //     ],
+    // );
+
+    let fourier = F::new(&[0.5, 1.0, 0.0, 1.0 / 9.0, 0.0, 1.0 / 25.0], &[]);
+    // let fourier = F::new(&[], &[1.0]);
+
     for theta in 0..=n {
         // the + 0.01 is to prevent periodicity
         let k = theta as f32 * std::f32::consts::PI * (model.degrees + 0.01) / 180.0;
-        // let r = size * (model.petals * k).sin();
-        let r = size * fourier.eval(0.75, model.petals * k);
+        let r = size * fourier.eval(model.scale, model.petals * k);
         vertices.push(pt(r * k.cos(), r * k.sin()));
     }
 
     // Draw the rose
     let trans = Transform::from_rotate_at(
-        27.0 * std::f32::consts::PI * app.frame_count as f32 / 1500.0, // angle in radians
+        model.rotate + 27.0 * std::f32::consts::PI * app.frame_count as f32 / 1500.0, // angle in radians
         0.0,
         0.0,
     );
@@ -118,7 +147,7 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
         .cartesian(app.config.width, app.config.height)
         .draw(&mut canvas);
 
-    if model.animate && vertices.len() > 2 && app.frame_count < model.lines {
+    if model.animate && vertices.len() > 2 && app.frame_count < LINES * model.density {
         Shape::new()
             .line(
                 vertices[app.frame_count as usize - 2],
@@ -131,7 +160,7 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     }
 
     // Draw a dot in the center when finished
-    if app.frame_count == model.lines {
+    if app.frame_count == model.density {
         let center = pt(app.config.w_f32() / 2.0, app.config.h_f32() / 2.0);
         Shape::new()
             .circle(center, 2.0)

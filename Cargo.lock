@@ -144,6 +144,7 @@ version = "0.1.0"
 dependencies = [
  "dirs",
  "noise",
+ "num-complex",
  "pixels",
  "png",
  "tiny-skia",

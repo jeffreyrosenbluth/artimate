@@ -389,7 +389,7 @@ where
                     .frame_mut()
                     .copy_from_slice((self.draw)(&self, &self.model).as_ref());
 
-                if self.frame_count > 0 && self.frame_count <= self.config.frames_to_save {
+                if self.frame_count <= self.config.frames_to_save {
                     if let Some(sender) = &self.frame_sender {
                         let frame_data: Vec<u8> = pixels.frame().to_vec();
                         if let Some(downloads_dir) = dirs::download_dir() {
