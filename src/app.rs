@@ -223,10 +223,10 @@ impl App<SketchMode> {
             frame_sender: maybe_tx,
             key_handlers: HashMap::new(),
             mouse_handlers: HashMap::new(),
-            _mode: PhantomData,
             key_press_handlers: HashMap::new(),
             key_release_handlers: HashMap::new(),
             keys_down: HashSet::new(),
+            _mode: PhantomData,
         }
     }
 }
@@ -269,10 +269,10 @@ where
             frame_sender: maybe_tx,
             key_handlers: HashMap::new(),
             mouse_handlers: HashMap::new(),
-            _mode: PhantomData,
             key_press_handlers: HashMap::new(),
             key_release_handlers: HashMap::new(),
             keys_down: HashSet::new(),
+            _mode: PhantomData,
         }
     }
 }
