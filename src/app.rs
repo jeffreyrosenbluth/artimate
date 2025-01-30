@@ -156,6 +156,8 @@ pub struct App<Mode = SketchMode, M = ()> {
     pub frame_count: u32,
     /// Window handle
     window: Option<Window>,
+    /// Pixels handle
+    pixels: Option<Pixels>,
     /// Current mouse position as (x, y) coordinates
     pub mouse_position: (f32, f32),
     /// Channel for sending frame data to be saved
@@ -220,6 +222,7 @@ impl App<SketchMode> {
             window_title: DEFAULT_TITLE.to_string(),
             frame_count: 0,
             window: None,
+            pixels: None,
             start_time: Instant::now(),
             mouse_position: (0.0, 0.0),
             frame_sender: maybe_tx,
@@ -266,6 +269,7 @@ where
             window_title: DEFAULT_TITLE.to_string(),
             frame_count: 0,
             window: None,
+            pixels: None,
             start_time: Instant::now(),
             mouse_position: (0.0, 0.0),
             frame_sender: maybe_tx,
@@ -345,10 +349,6 @@ where
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        if event != WindowEvent::RedrawRequested {
-            println!("Received event: {:?}", event); // Log all window events
-        }
-
         let window = self.window.as_ref().unwrap();
         let window_size = window.inner_size();
 
@@ -391,42 +391,44 @@ where
                 }
             }
             WindowEvent::RedrawRequested => {
-                let mut pixels = {
+                self.pixels.get_or_insert_with(|| {
                     let surface_texture =
                         SurfaceTexture::new(window_size.width, window_size.height, &window);
-
                     Pixels::new(self.config.width, self.config.height, surface_texture).unwrap()
-                };
-                pixels
-                    .frame_mut()
-                    .copy_from_slice((self.draw)(&self, &self.model).as_ref());
+                });
 
-                if self.frame_count < self.config.frames_to_save {
-                    if let Some(sender) = &self.frame_sender {
-                        let frame_data: Vec<u8> = pixels.frame().to_vec();
-                        if let Some(downloads_dir) = dirs::download_dir() {
-                            let output_dir = downloads_dir.join("frames");
-                            if let Err(err) = std::fs::create_dir_all(&output_dir) {
-                                eprintln!("Failed to create frames directory: {}", err);
-                            } else {
-                                let filename =
-                                    output_dir.join(format!("frame_{:04}.png", self.frame_count));
-                                if let Err(err) = sender.send((
-                                    frame_data,
-                                    filename.to_string_lossy().to_string(),
-                                    self.config.width,
-                                    self.config.height,
-                                )) {
-                                    eprintln!("Failed to send frame data: {}", err);
+                let draw_result = (self.draw)(&self, &self.model);
+
+                if let Some(pixels) = self.pixels.as_mut() {
+                    pixels.frame_mut().copy_from_slice(draw_result.as_ref());
+
+                    if self.frame_count < self.config.frames_to_save {
+                        if let Some(sender) = &self.frame_sender {
+                            let frame_data: Vec<u8> = pixels.frame().to_vec();
+                            if let Some(downloads_dir) = dirs::download_dir() {
+                                let output_dir = downloads_dir.join("frames");
+                                if let Err(err) = std::fs::create_dir_all(&output_dir) {
+                                    eprintln!("Failed to create frames directory: {}", err);
+                                } else {
+                                    let filename = output_dir
+                                        .join(format!("frame_{:04}.png", self.frame_count));
+                                    if let Err(err) = sender.send((
+                                        frame_data,
+                                        filename.to_string_lossy().to_string(),
+                                        self.config.width,
+                                        self.config.height,
+                                    )) {
+                                        eprintln!("Failed to send frame data: {}", err);
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                if let Err(_err) = pixels.render() {
-                    event_loop.exit();
-                    return;
+                    if let Err(_err) = pixels.render() {
+                        event_loop.exit();
+                        return;
+                    }
                 }
 
                 if let Some(update) = self.update {
@@ -482,6 +484,7 @@ where
                 handler(self);
             }
         }
+        self.window.as_ref().unwrap().request_redraw();
     }
 
     fn handle_mouse_input(&mut self, button: MouseButton) {
@@ -489,6 +492,7 @@ where
         if let Some(handler) = handler {
             handler(self);
         }
+        self.window.as_ref().unwrap().request_redraw();
     }
 }
 

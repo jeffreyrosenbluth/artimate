@@ -16,7 +16,7 @@ fn main() -> Result<(), Error> {
     let mut model = Model::default();
     model.series = FourierSeries::square_wave();
 
-    let config = Config::with_dims(700, 700);
+    let config = Config::with_dims(700, 700).no_loop();
     let mut app = App::app(model, config, |_, model| model, draw).set_title("Maurer Rose");
 
     message(&app.model);
@@ -100,8 +100,7 @@ impl Default for Model {
         Self {
             n: 2.0,
             degrees: 145.0,
-            series: FourierSeries::s(&[1.0]),
-            // series: FourierSeries::square_wave(),
+            series: FourierSeries::square_wave(),
             density: 2,
             stroke_weight: 0.25,
             rotate: 0.0,
@@ -170,7 +169,7 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     let size = app.config.w_f32() / 2.2;
 
     for theta in 0..LINES * model.density {
-        // the + 0.01 is to prevent periodicity
+        // The + 0.01 is to prevent periodicity
         let k = theta as f32 * std::f32::consts::PI * (model.degrees + 0.01) / 180.0;
         let r = size * model.series.eval(model.scale, model.n * k);
         vertices.push(pt(r * k.cos(), r * k.sin()));
