@@ -154,9 +154,11 @@ pub struct App<Mode = SketchMode, M = ()> {
     pub window_title: String,
     /// Number of frames rendered
     pub frame_count: u32,
+    /// Window handle
     window: Option<Window>,
     /// Current mouse position as (x, y) coordinates
     pub mouse_position: (f32, f32),
+    /// Channel for sending frame data to be saved
     frame_sender: Option<mpsc::Sender<(Vec<u8>, String, u32, u32)>>,
     /// Map of key handlers for custom key events
     key_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
@@ -325,7 +327,7 @@ where
 {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let size = LogicalSize::new(self.config.width as f64, self.config.height as f64);
-        self.window = Some(
+        self.window.get_or_insert_with(|| {
             event_loop
                 .create_window(
                     Window::default_attributes()
@@ -333,8 +335,8 @@ where
                         .with_inner_size(size)
                         .with_min_inner_size(size),
                 )
-                .unwrap(),
-        );
+                .unwrap()
+        });
     }
 
     fn window_event(
@@ -343,23 +345,27 @@ where
         _window_id: WindowId,
         event: WindowEvent,
     ) {
+        if event != WindowEvent::RedrawRequested {
+            println!("Received event: {:?}", event); // Log all window events
+        }
+
         let window = self.window.as_ref().unwrap();
         let window_size = window.inner_size();
-        let mut pixels = {
-            let surface_texture =
-                SurfaceTexture::new(window_size.width, window_size.height, &window);
-
-            Pixels::new(self.config.width, self.config.height, surface_texture).unwrap()
-        };
 
         self.time = self.start_time.elapsed().as_secs_f32();
 
         match event {
             WindowEvent::CloseRequested => {
+                println!("Close Requested");
                 event_loop.exit();
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 self.handle_keyboard_input(event, event_loop);
+            }
+            WindowEvent::MouseInput { button, state, .. } => {
+                if state == winit::event::ElementState::Pressed {
+                    self.handle_mouse_input(button);
+                }
             }
             WindowEvent::CursorMoved { position, .. } => {
                 if let Some(window) = &self.window {
@@ -385,11 +391,17 @@ where
                 }
             }
             WindowEvent::RedrawRequested => {
+                let mut pixels = {
+                    let surface_texture =
+                        SurfaceTexture::new(window_size.width, window_size.height, &window);
+
+                    Pixels::new(self.config.width, self.config.height, surface_texture).unwrap()
+                };
                 pixels
                     .frame_mut()
                     .copy_from_slice((self.draw)(&self, &self.model).as_ref());
 
-                if self.frame_count <= self.config.frames_to_save {
+                if self.frame_count < self.config.frames_to_save {
                     if let Some(sender) = &self.frame_sender {
                         let frame_data: Vec<u8> = pixels.frame().to_vec();
                         if let Some(downloads_dir) = dirs::download_dir() {
@@ -420,22 +432,17 @@ where
                 if let Some(update) = self.update {
                     self.model = update(&self, self.model.clone());
                 }
-                self.frame_count += 1;
 
                 if !self.config.no_loop {
                     if let Some(frames) = self.config.frames {
-                        if self.frame_count <= frames {
-                            self.window.as_ref().unwrap().request_redraw();
+                        if self.frame_count < frames {
+                            window.request_redraw();
                         }
                     } else {
-                        self.window.as_ref().unwrap().request_redraw();
+                        window.request_redraw();
                     }
                 }
-            }
-            WindowEvent::MouseInput { button, state, .. } => {
-                if state == winit::event::ElementState::Pressed {
-                    self.handle_mouse_input(button);
-                }
+                self.frame_count += 1;
             }
             _ => (),
         }
