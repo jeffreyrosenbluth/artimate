@@ -10,9 +10,9 @@ use std::time::Instant;
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
-    event::{MouseButton, WindowEvent},
+    event::{Modifiers, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    keyboard::Key,
+    keyboard::{Key, ModifiersKeyState},
     window::{CursorIcon, Window, WindowId},
 };
 
@@ -169,6 +169,8 @@ pub struct App<Mode = SketchMode, M = ()> {
     key_press_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
     key_release_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
     keys_down: HashSet<Key>,
+    /// Modifiers state
+    modifiers: Modifiers,
     _mode: PhantomData<Mode>,
 }
 
@@ -231,6 +233,7 @@ impl App<SketchMode> {
             key_press_handlers: HashMap::new(),
             key_release_handlers: HashMap::new(),
             keys_down: HashSet::new(),
+            modifiers: Modifiers::default(),
             _mode: PhantomData,
         }
     }
@@ -278,6 +281,7 @@ where
             key_press_handlers: HashMap::new(),
             key_release_handlers: HashMap::new(),
             keys_down: HashSet::new(),
+            modifiers: Modifiers::default(),
             _mode: PhantomData,
         }
     }
@@ -359,7 +363,40 @@ where
                 println!("Close Requested");
                 event_loop.exit();
             }
+            WindowEvent::ModifiersChanged(new_mods) => {
+                self.modifiers = new_mods; // Update stored modifier state
+            }
             WindowEvent::KeyboardInput { event, .. } => {
+                if event.state == winit::event::ElementState::Pressed {
+                    if let Key::Character(ref text) = event.logical_key {
+                        if text == "s" {
+                            if self.modifiers.lsuper_state() == ModifiersKeyState::Pressed
+                                || self.modifiers.rsuper_state() == ModifiersKeyState::Pressed
+                            {
+                                let draw_result = (self.draw)(&self, &self.model);
+                                if let Some(pixels) = self.pixels.as_mut() {
+                                    pixels.frame_mut().copy_from_slice(draw_result.as_ref());
+                                    let frame_data: Vec<u8> = pixels.frame().to_vec();
+                                    if let Some(downloads_dir) = dirs::download_dir() {
+                                        let output_dir = downloads_dir.join("artmate");
+                                        if let Err(err) = std::fs::create_dir_all(&output_dir) {
+                                            eprintln!("Failed to create frames directory: {}", err);
+                                        } else {
+                                            let filename = output_dir.join(format!("artmate.png"));
+                                            save_frame(
+                                                frame_data,
+                                                filename.to_string_lossy().to_string(),
+                                                self.config.width,
+                                                self.config.height,
+                                            )
+                                            .unwrap();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 self.handle_keyboard_input(event, event_loop);
             }
             WindowEvent::MouseInput { button, state, .. } => {

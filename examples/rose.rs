@@ -41,7 +41,15 @@ fn main() -> Result<(), Error> {
         app.model.degrees += 1.0;
         message(&app.model);
     });
+    app.on_key_press(Key::Character(".".into()), |app| {
+        app.model.degrees += 1.0;
+        message(&app.model);
+    });
     app.on_key_press(Key::Named(winit::keyboard::NamedKey::ArrowLeft), |app| {
+        app.model.degrees -= 1.0;
+        message(&app.model);
+    });
+    app.on_key_press(Key::Character(",".into()), |app| {
         app.model.degrees -= 1.0;
         message(&app.model);
     });
@@ -65,12 +73,16 @@ fn main() -> Result<(), Error> {
         app.model.degrees = 1.0;
         message(&app.model);
     });
-    app.on_key_press(Key::Character("s".into()), |app| {
+    app.on_key_press(Key::Character("a".into()), |app| {
         app.model.scale -= 0.1;
         message(&app.model);
     });
-    app.on_key_press(Key::Character("S".into()), |app| {
+    app.on_key_press(Key::Character("A".into()), |app| {
         app.model.scale += 0.1;
+        message(&app.model);
+    });
+    app.on_key_press(Key::Character("i".into()), |app| {
+        app.model.irrational = !app.model.irrational;
         message(&app.model);
     });
     app.run()
@@ -93,18 +105,33 @@ struct Model {
     rotate: f32,
     // Scale factor
     scale: f32,
+    // Color gradient
+    gradient: ColorScale,
+    // Irrational ?
+    irrational: bool,
 }
 
 impl Default for Model {
     fn default() -> Self {
+        let mut rng = SmallRng::seed_from_u64(1);
+        let gradient = ColorScale::new(
+            rand_okhsla(&mut rng),
+            rand_okhsla(&mut rng),
+            rand_okhsla(&mut rng),
+            rand_okhsla(&mut rng),
+            rand_okhsla(&mut rng),
+        );
         Self {
             n: 2.0,
             degrees: 74.0,
-            series: FourierSeries::sawtooth() * 0.75 + 1.25 * FourierSeries::s(&[1.0]),
+            // series: FourierSeries::sawtooth() + FourierSeries::square(),
+            series: FourierSeries::s(&[1.0]),
             density: 2,
             stroke_weight: 0.25,
             rotate: 0.0,
-            scale: 1.5,
+            scale: 1.0,
+            gradient,
+            irrational: true,
         }
     }
 }
@@ -241,8 +268,10 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     let size = app.config.w_f32() / 2.2;
 
     for theta in 0..LINES * model.density {
-        // The + 0.01 is to prevent periodicity
-        let k = theta as f32 * std::f32::consts::PI * (model.degrees + 0.01) / 180.0;
+        let k = theta as f32
+            * std::f32::consts::PI
+            * (model.degrees + if model.irrational { 0.01 } else { 0.0 })
+            / 180.0;
         let r = size * model.series.eval(model.scale, model.n * k);
         vertices.push(pt(r * k.cos(), r * k.sin()));
     }
@@ -250,13 +279,16 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     let trans = Transform::from_rotate_at(model.rotate, 0.0, 0.0);
     trans.map_points(&mut vertices);
 
-    Shape::new()
-        .no_fill()
-        .stroke_color(Color::from_rgba8(255, 255, 255, 100))
-        .stroke_weight(model.stroke_weight)
-        .points(&vertices)
-        .cartesian(app.config.width, app.config.height)
-        .draw(&mut canvas);
-
+    for v in vertices.windows(2) {
+        let t = v[1].mag() / app.config.w_f32();
+        let color = model.gradient.get_color(t);
+        Shape::new()
+            .line(v[0], v[1])
+            .no_fill()
+            .stroke_color(color)
+            .stroke_weight(model.stroke_weight)
+            .cartesian(app.config.width, app.config.height)
+            .draw(&mut canvas);
+    }
     canvas.take()
 }
