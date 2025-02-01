@@ -8,8 +8,8 @@ const LINES: u32 = 3600;
 
 fn message(model: &Model) {
     println!(
-        "n = {}, degrees = {}, scale = {}, rotate = {}",
-        model.n, model.degrees, model.scale, model.rotate
+        "n = {}, degrees = {}, scale = {}, rotate = {}, seed = {}",
+        model.n, model.degrees, model.scale, model.rotate, model.seed
     );
 }
 
@@ -85,6 +85,18 @@ fn main() -> Result<(), Error> {
         app.model.irrational = !app.model.irrational;
         message(&app.model);
     });
+    app.on_key_press(Key::Character("g".into()), |app| {
+        let seed = app.model.seed - 1;
+        app.model = app.model.clone().update_grad(seed);
+        app.model.seed = seed;
+        message(&app.model);
+    });
+    app.on_key_press(Key::Character("G".into()), |app| {
+        let seed = app.model.seed + 1;
+        app.model = app.model.clone().update_grad(seed);
+        app.model.seed = seed;
+        message(&app.model);
+    });
     app.run()
 }
 
@@ -109,11 +121,27 @@ struct Model {
     gradient: ColorScale,
     // Irrational ?
     irrational: bool,
+    // Seed for the gradient
+    seed: u64,
+}
+
+impl Model {
+    fn update_grad(self, seed: u64) -> Self {
+        let mut rng = SmallRng::seed_from_u64(seed);
+        let gradient = ColorScale::new(
+            rand_okhsla(&mut rng),
+            rand_okhsla(&mut rng),
+            rand_okhsla(&mut rng),
+            rand_okhsla(&mut rng),
+            rand_okhsla(&mut rng),
+        );
+        Model { gradient, ..self }
+    }
 }
 
 impl Default for Model {
     fn default() -> Self {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = SmallRng::seed_from_u64(2);
         let gradient = ColorScale::new(
             rand_okhsla(&mut rng),
             rand_okhsla(&mut rng),
@@ -132,6 +160,7 @@ impl Default for Model {
             scale: 1.0,
             gradient,
             irrational: true,
+            seed: 0,
         }
     }
 }
