@@ -280,7 +280,7 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     trans.map_points(&mut vertices);
 
     for v in vertices.windows(2) {
-        let t = v[1].mag() / app.config.w_f32();
+        let t = v[1].mag() / (model.scale * app.config.w_f32());
         let color = model.gradient.get_color(t);
         Shape::new()
             .line(v[0], v[1])
