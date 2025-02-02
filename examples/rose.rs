@@ -16,7 +16,7 @@ fn message(model: &Model) {
 fn main() -> Result<(), Error> {
     let model = Model::default();
 
-    let config = Config::with_dims(700, 700).no_loop();
+    let config = Config::with_dims(1000, 1000).no_loop();
     let mut app = App::app(model, config, |_, model| model, draw).set_title("Maurer Rose");
 
     message(&app.model);
@@ -152,15 +152,15 @@ impl Default for Model {
         Self {
             n: 2.0,
             degrees: 74.0,
-            // series: FourierSeries::sawtooth() + FourierSeries::square(),
-            series: FourierSeries::s(&[1.0]),
+            series: FourierSeries::sawtooth() + 4.0 * FourierSeries::square(),
+            // series: FourierSeries::s(&[1.0]),
             density: 2,
             stroke_weight: 0.25,
             rotate: 0.0,
             scale: 1.0,
             gradient,
             irrational: true,
-            seed: 0,
+            seed: 75,
         }
     }
 }
