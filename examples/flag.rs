@@ -71,7 +71,7 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     canvas.fill(*BLACK);
 
     // Calculate spacing between points based on canvas width and margins
-    let (w, _) = app.config.wh_f32();
+    let (w, _) = app.wh_f32();
     let space = (w - model.margin * 2.0) / model.points as f32;
 
     // Current time for animation

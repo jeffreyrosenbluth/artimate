@@ -25,10 +25,11 @@ impl Default for Model {
 fn main() -> Result<(), Error> {
     let model = Model::default();
     let n = 2u32.pow(model.order);
-    let config = Config::with_dims(1080, 1080)
+    let config = Config::with_dims(1080, 1080);
+    let mut app = App::app(model, config, |_, model| model, draw)
+        .set_title("Hilbert")
         .set_frames(n * n * 3 / 2)
         .set_frames_to_save(n * n * 3 / 2);
-    let mut app = App::app(model, config, |_, model| model, draw).set_title("Hilbert");
     app.run()
 }
 
@@ -44,7 +45,7 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
         for i in 0..app.frame_count.min(n2 - 1) {
             let j = i as usize;
             path.push(hilbert(i, model.order));
-            let (w, h) = app.config.wh_f32();
+            let (w, h) = app.wh_f32();
             let w = w - model.margin * 2.0;
             let h = h - model.margin * 2.0;
             let m = w / n as f32;
@@ -85,7 +86,7 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
         for i in 0..n2 {
             let j = i as usize;
             path.push(hilbert(i, model.order));
-            let (w, h) = app.config.wh_f32();
+            let (w, h) = app.wh_f32();
             let w = w - model.margin * 2.0;
             let h = h - model.margin * 2.0;
             let m = w / n as f32;

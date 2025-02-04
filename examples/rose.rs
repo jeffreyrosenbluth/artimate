@@ -16,8 +16,10 @@ fn message(model: &Model) {
 fn main() -> Result<(), Error> {
     let model = Model::default();
 
-    let config = Config::with_dims(1000, 1000).no_loop();
-    let mut app = App::app(model, config, |_, model| model, draw).set_title("Maurer Rose");
+    let config = Config::with_dims(1000, 1000);
+    let mut app = App::app(model, config, |_, model| model, draw)
+        .set_title("Maurer Rose")
+        .no_loop();
 
     message(&app.model);
 
@@ -91,7 +93,7 @@ fn main() -> Result<(), Error> {
         app.model.seed = seed;
         message(&app.model);
     });
-    app.on_key_press(Key::Character("G".into()), |app| {
+    app.on_key_press(Key::Character("h".into()), |app| {
         let seed = app.model.seed + 1;
         app.model = app.model.clone().update_grad(seed);
         app.model.seed = seed;
@@ -141,7 +143,7 @@ impl Model {
 
 impl Default for Model {
     fn default() -> Self {
-        let mut rng = SmallRng::seed_from_u64(2);
+        let mut rng = SmallRng::seed_from_u64(0);
         let gradient = ColorScale::new(
             rand_okhsla(&mut rng),
             rand_okhsla(&mut rng),
@@ -151,16 +153,15 @@ impl Default for Model {
         );
         Self {
             n: 2.0,
-            degrees: 74.0,
-            series: FourierSeries::sawtooth() + 4.0 * FourierSeries::square(),
-            // series: FourierSeries::s(&[1.0]),
+            degrees: 45.0,
+            series: FourierSeries::cosine(),
             density: 2,
             stroke_weight: 0.25,
             rotate: 0.0,
             scale: 1.0,
             gradient,
             irrational: true,
-            seed: 75,
+            seed: 0,
         }
     }
 }
@@ -193,6 +194,14 @@ impl FourierSeries {
 
     fn s(bn: &[f32]) -> Self {
         Self::new(&[], bn)
+    }
+
+    fn sine() -> Self {
+        Self::s(&[1.0])
+    }
+
+    fn cosine() -> Self {
+        Self::c(&[1.0, 7.0])
     }
 
     fn square() -> Self {
@@ -294,7 +303,7 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     canvas.fill(*BLACK);
 
     let mut vertices = vec![];
-    let size = app.config.w_f32() / 2.2;
+    let size = app.w_f32() / 2.2;
 
     for theta in 0..LINES * model.density {
         let k = theta as f32
@@ -305,11 +314,13 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
         vertices.push(pt(r * k.cos(), r * k.sin()));
     }
 
+    // vertices = chaiken(&vertices, 1, Trail::Open);
+
     let trans = Transform::from_rotate_at(model.rotate, 0.0, 0.0);
     trans.map_points(&mut vertices);
 
     for v in vertices.windows(2) {
-        let t = v[1].mag() / (model.scale * app.config.w_f32());
+        let t = v[1].mag() / (model.scale * size);
         let color = model.gradient.get_color(t);
         Shape::new()
             .line(v[0], v[1])

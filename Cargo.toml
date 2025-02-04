@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+delegate = "0.13.2"
 dirs = "6.0"
 num-complex = "0.4.6"
 pixels = "0.14.0"

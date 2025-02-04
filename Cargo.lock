@@ -142,6 +142,7 @@ checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 name = "artimate"
 version = "0.1.0"
 dependencies = [
+ "delegate",
  "dirs",
  "noise",
  "num-complex",
@@ -523,6 +524,17 @@ dependencies = [
  "bitflags 2.8.0",
  "libloading 0.8.6",
  "winapi",
+]
+
+[[package]]
+name = "delegate"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "297806318ef30ad066b15792a8372858020ae3ca2e414ee6c2133b1eb9e9e945"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

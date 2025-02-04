@@ -57,8 +57,10 @@ impl Default for Model {
 fn main() -> Result<(), Error> {
     let model = Model::default();
     // Default size is 1080 x 700.
-    let config = Config::default().set_frames_to_save(1508);
-    let mut app = App::app(model, config, update, draw).set_title("Sphere");
+    let config = Config::default();
+    let mut app = App::app(model, config, update, draw)
+        .set_title("Sphere")
+        .set_frames_to_save(1508);
     let key = Key::Character("t".into());
     app.on_key_press(key, move |app| {
         app.model.mouse_controls = !app.model.mouse_controls;
@@ -134,8 +136,8 @@ fn draw_planet(
 
 fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
     // It's convenient to have both the width and height as u32 and  f32
-    let (width, height) = app.config.wh();
-    let (w_f32, h_f32) = app.config.wh_f32();
+    let (width, height) = app.wh();
+    let (w_f32, h_f32) = app.wh_f32();
 
     let center = pt(w_f32 / 2.0, h_f32 / 2.0);
     let half_time = 0.5 * app.time;

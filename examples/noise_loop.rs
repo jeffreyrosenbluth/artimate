@@ -6,8 +6,10 @@ const TAU: f32 = std::f32::consts::PI * 2.0;
 
 fn main() -> Result<(), Error> {
     let model = Model::default();
-    let config = Config::with_dims(700, 700).set_frames_to_save(50);
-    let mut app = App::app(model, config, |_, model| model, draw).set_title("Noise Loop");
+    let config = Config::with_dims(700, 700);
+    let mut app = App::app(model, config, |_, model| model, draw)
+        .set_title("Noise Loop")
+        .set_frames_to_save(50);
     app.run()
 }
 
@@ -52,7 +54,7 @@ fn periodic_noise(model: &Model, p: f32, seed: f32, x: f32, y: f32) -> f32 {
 
 // Offset for the the first 2 parameters of the 4d noise function.
 fn offset(app: &App<AppMode, Model>, model: &Model, x: f32, y: f32) -> f32 {
-    let (w, h) = app.config.wh_f32();
+    let (w, h) = app.wh_f32();
     let dist2 = (x - w / 2.0) * (x - w / 2.0) + (y - h / 2.0) * (y - h / 2.0);
     model.factor * dist2.sqrt()
 }
