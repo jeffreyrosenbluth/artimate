@@ -49,6 +49,7 @@ impl Config {
     /// * `no_loop` - If true, renders only one frame
     /// * `cursor_visible` - Controls cursor visibility
     /// * `frames_to_save` - Number of frames to save as PNG files
+    /// * `window_title` - Title of the application window
     pub fn new(
         width: u32,
         height: u32,
