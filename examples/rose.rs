@@ -5,12 +5,25 @@ use wassily::prelude::*;
 use winit::keyboard::Key;
 
 const LINES: u32 = 3600;
+const COLOR_SEED: u64 = 95;
+const FOURIER_SEED: u64 = 0;
 
 fn message(model: &Model) {
+    println!("┌──────────────┬────────────┐");
+    println!("│ n            │ {:<10} │", format!("{:.2}", model.n));
+    println!("│ degrees      │ {:<10} │", format!("{:.1}", model.degrees));
+    println!("│ scale        │ {:<10} │", format!("{:.2}", model.scale));
+    println!("├──────────────┼────────────┤");
+    println!("│ color seed   │ {:<10} │", model.color_seed);
+    println!("│ fourier seed │ {:<10} │", model.series_seed);
+    println!("├──────────────┼────────────┤");
+    println!("│ density      │ {:<10} │", model.density);
     println!(
-        "n = {}, degrees = {}, scale = {}, rotate = {}, seed = {}",
-        model.n, model.degrees, model.scale, model.rotate, model.seed
+        "│ stroke weight│ {:<10} │",
+        format!("{:.2}", model.stroke_weight)
     );
+    println!("│ irrational   │ {:<10} │", model.irrational);
+    println!("└──────────────┴────────────┘");
 }
 
 fn main() -> Result<(), Error> {
@@ -21,10 +34,41 @@ fn main() -> Result<(), Error> {
         .set_title("Maurer Rose")
         .no_loop();
 
-    message(&app.model);
+    app.on_key_press(Key::Character("n".into()), |app| {
+        app.model.control = Control::N;
+        println!("Control Mode: n");
+    });
+    app.on_key_press(Key::Character("d".into()), |app| {
+        app.model.control = Control::Degrees;
+        println!("Control Mode: Degrees");
+    });
+    app.on_key_press(Key::Character("r".into()), |app| {
+        app.model.control = Control::Rotate;
+        println!("Control Mode: Rotate");
+    });
+    app.on_key_press(Key::Character("a".into()), |app| {
+        app.model.control = Control::Scale;
+        println!("Control Mode: Scale");
+    });
+    app.on_key_press(Key::Character("w".into()), |app| {
+        app.model.control = Control::StrokeWeight;
+        println!("Control Mode: Stroke Weight");
+    });
+    app.on_key_press(Key::Character("c".into()), |app| {
+        app.model.control = Control::Color;
+        println!("Control Mode: Color");
+    });
+    app.on_key_press(Key::Character("f".into()), |app| {
+        app.model.control = Control::Fourier;
+        println!("Control Mode: Fourier");
+    });
+    app.on_key_press(Key::Character("m".into()), |app| {
+        app.model.control = Control::Density;
+        println!("Control Mode: Density");
+    });
 
     app.on_key_press(Key::Character("=".into()), |app| {
-        app.model.n += 0.5;
+        app.model.control = Control::Degrees;
         message(&app.model);
     });
     app.on_key_press(Key::Character("+".into()), |app| {
@@ -39,67 +83,146 @@ fn main() -> Result<(), Error> {
         app.model.n -= 0.25;
         message(&app.model);
     });
+
     app.on_key_press(Key::Named(winit::keyboard::NamedKey::ArrowRight), |app| {
-        app.model.degrees += 1.0;
-        message(&app.model);
-    });
-    app.on_key_press(Key::Character(".".into()), |app| {
-        app.model.degrees += 1.0;
+        match app.model.control {
+            Control::Degrees => app.model.degrees += 1.0,
+            Control::N => app.model.n += 0.5,
+            Control::Density => app.model.density += 1,
+            Control::StrokeWeight => app.model.stroke_weight += 0.05,
+            Control::Color => {
+                app.model.color_seed += 1;
+                app.model.update_grad(app.model.color_seed);
+            }
+            Control::Fourier => {
+                app.model.series_seed += 1;
+                app.model.random_series();
+            }
+            Control::Scale => app.model.scale += 0.1,
+            Control::Rotate => app.model.rotate += 1.0,
+        }
         message(&app.model);
     });
     app.on_key_press(Key::Named(winit::keyboard::NamedKey::ArrowLeft), |app| {
-        app.model.degrees -= 1.0;
+        match app.model.control {
+            Control::Degrees => app.model.degrees -= 1.0,
+            Control::N => app.model.n -= 0.5,
+            Control::Density => app.model.density -= 1,
+            Control::StrokeWeight => app.model.stroke_weight -= 0.05,
+            Control::Color => {
+                app.model.color_seed -= 1;
+                app.model.update_grad(app.model.color_seed);
+            }
+            Control::Fourier => {
+                app.model.series_seed -= 1;
+                app.model.random_series();
+            }
+            Control::Scale => app.model.scale -= 0.1,
+            Control::Rotate => app.model.rotate -= 1.0,
+        }
+        message(&app.model);
+    });
+
+    app.on_key_press(Key::Character(".".into()), |app| {
+        match app.model.control {
+            Control::Degrees => app.model.degrees += 0.1,
+            Control::N => app.model.n += 0.25,
+            Control::Density => app.model.density += 1,
+            Control::StrokeWeight => app.model.stroke_weight += 0.01,
+            Control::Color => {
+                app.model.color_seed += 1;
+                app.model.update_grad(app.model.color_seed);
+            }
+            Control::Fourier => {
+                app.model.series_seed += 1;
+                app.model.random_series();
+            }
+            Control::Scale => app.model.scale += 0.05,
+            Control::Rotate => app.model.rotate += 0.5,
+        }
         message(&app.model);
     });
     app.on_key_press(Key::Character(",".into()), |app| {
-        app.model.degrees -= 1.0;
+        match app.model.control {
+            Control::Degrees => app.model.degrees -= 0.1,
+            Control::N => app.model.n -= 0.25,
+            Control::Density => app.model.density -= 1,
+            Control::StrokeWeight => app.model.stroke_weight -= 0.01,
+            Control::Color => {
+                app.model.color_seed -= 1;
+                app.model.update_grad(app.model.color_seed);
+            }
+            Control::Fourier => {
+                app.model.series_seed -= 1;
+                app.model.random_series();
+            }
+            Control::Scale => app.model.scale -= 0.05,
+            Control::Rotate => app.model.rotate -= 0.5,
+        }
         message(&app.model);
     });
+
     app.on_key_press(Key::Character(">".into()), |app| {
-        app.model.degrees += 10.0;
+        match app.model.control {
+            Control::Degrees => app.model.degrees += 10.0,
+            Control::N => app.model.n += 1.0,
+            Control::Density => app.model.density += 1,
+            Control::StrokeWeight => app.model.stroke_weight += 0.25,
+            Control::Color => {
+                app.model.color_seed += 1;
+                app.model.update_grad(app.model.color_seed);
+            }
+            Control::Fourier => {
+                app.model.series_seed += 1;
+                app.model.random_series();
+            }
+            Control::Scale => app.model.scale += 0.5,
+            Control::Rotate => app.model.rotate += 5.0,
+        }
         message(&app.model);
     });
     app.on_key_press(Key::Character("<".into()), |app| {
-        app.model.degrees -= 10.0;
+        match app.model.control {
+            Control::Degrees => app.model.degrees -= 10.0,
+            Control::N => app.model.n -= 1.0,
+            Control::Density => app.model.density -= 1,
+            Control::StrokeWeight => app.model.stroke_weight -= 0.25,
+            Control::Color => {
+                app.model.color_seed -= 1;
+                app.model.update_grad(app.model.color_seed);
+            }
+            Control::Fourier => {
+                app.model.series_seed -= 1;
+                app.model.random_series();
+            }
+            Control::Scale => app.model.scale -= 0.5,
+            Control::Rotate => app.model.rotate -= 5.0,
+        }
         message(&app.model);
     });
-    app.on_key_press(Key::Character("r".into()), |app| {
-        app.model.rotate -= 1.0;
-        message(&app.model);
-    });
-    app.on_key_press(Key::Character("R".into()), |app| {
-        app.model.rotate += 1.0;
-        message(&app.model);
-    });
+
     app.on_key_press(Key::Character("1".into()), |app| {
         app.model.degrees = 1.0;
-        message(&app.model);
-    });
-    app.on_key_press(Key::Character("a".into()), |app| {
-        app.model.scale -= 0.1;
-        message(&app.model);
-    });
-    app.on_key_press(Key::Character("A".into()), |app| {
-        app.model.scale += 0.1;
         message(&app.model);
     });
     app.on_key_press(Key::Character("i".into()), |app| {
         app.model.irrational = !app.model.irrational;
         message(&app.model);
     });
-    app.on_key_press(Key::Character("g".into()), |app| {
-        let seed = app.model.seed - 1;
-        app.model = app.model.clone().update_grad(seed);
-        app.model.seed = seed;
-        message(&app.model);
-    });
-    app.on_key_press(Key::Character("h".into()), |app| {
-        let seed = app.model.seed + 1;
-        app.model = app.model.clone().update_grad(seed);
-        app.model.seed = seed;
-        message(&app.model);
-    });
+    message(&app.model);
     app.run()
+}
+
+#[derive(Copy, Clone)]
+enum Control {
+    N,
+    Degrees,
+    Scale,
+    Rotate,
+    Density,
+    StrokeWeight,
+    Color,
+    Fourier,
 }
 
 #[derive(Clone)]
@@ -124,26 +247,35 @@ struct Model {
     // Irrational ?
     irrational: bool,
     // Seed for the gradient
-    seed: u64,
+    color_seed: u64,
+    // Seed for the Fourier series
+    series_seed: u64,
+    // Control
+    control: Control,
 }
 
 impl Model {
-    fn update_grad(self, seed: u64) -> Self {
+    fn update_grad(&mut self, seed: u64) {
         let mut rng = SmallRng::seed_from_u64(seed);
-        let gradient = ColorScale::new(
+        self.gradient = ColorScale::new(
             rand_okhsla(&mut rng),
             rand_okhsla(&mut rng),
             rand_okhsla(&mut rng),
             rand_okhsla(&mut rng),
             rand_okhsla(&mut rng),
         );
-        Model { gradient, ..self }
+        self.color_seed = seed;
+    }
+
+    fn random_series(&mut self) {
+        let mut rng = SmallRng::seed_from_u64(self.series_seed);
+        self.series = FourierSeries::random(&mut rng, 5);
     }
 }
 
 impl Default for Model {
     fn default() -> Self {
-        let mut rng = SmallRng::seed_from_u64(0);
+        let mut rng = SmallRng::seed_from_u64(COLOR_SEED);
         let gradient = ColorScale::new(
             rand_okhsla(&mut rng),
             rand_okhsla(&mut rng),
@@ -154,14 +286,16 @@ impl Default for Model {
         Self {
             n: 2.0,
             degrees: 45.0,
-            series: FourierSeries::cosine(),
+            series: FourierSeries::random(&mut rng, 10),
             density: 2,
             stroke_weight: 0.25,
             rotate: 0.0,
             scale: 1.0,
             gradient,
             irrational: true,
-            seed: 0,
+            color_seed: COLOR_SEED,
+            series_seed: FOURIER_SEED,
+            control: Control::Degrees,
         }
     }
 }
@@ -221,6 +355,12 @@ impl FourierSeries {
 
     fn triangle() -> Self {
         Self::s(&[1.0, 0.0, 1.0 / 9.0, 0.0, 1.0 / 25.0, 0.0, 1.0 / 49.0])
+    }
+
+    fn random(rng: &mut SmallRng, n: usize) -> Self {
+        let an: Vec<f32> = (0..n).map(|_| rng.gen_range(-1.0..=1.0)).collect();
+        let bn: Vec<f32> = (0..n - 1).map(|_| rng.gen_range(-1.0..=1.0)).collect();
+        Self::new(&an, &bn)
     }
 
     fn sum(self, other: Self) -> Self {
