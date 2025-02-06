@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::mpsc;
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -177,11 +177,15 @@ pub struct App<Mode = SketchMode, M = ()> {
     key_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
     /// Map of mouse button handlers for custom mouse events
     mouse_handlers: HashMap<MouseButton, Rc<dyn Fn(&mut App<Mode, M>)>>,
+    /// Map of key press handlers for custom key events
     key_press_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
+    /// Map of key release handlers for custom key events
     key_release_handlers: HashMap<Key, Rc<dyn Fn(&mut App<Mode, M>)>>,
+    /// Set of keys currently held down
     keys_down: HashSet<Key>,
     /// Modifiers state
     modifiers: Modifiers,
+    /// Phantom data for mode type
     _mode: PhantomData<Mode>,
 }
 
@@ -519,7 +523,12 @@ where
                                         if let Err(err) = std::fs::create_dir_all(&output_dir) {
                                             eprintln!("Failed to create frames directory: {}", err);
                                         } else {
-                                            let filename = output_dir.join(format!("artmate.png"));
+                                            let timestamp = SystemTime::now()
+                                                .duration_since(UNIX_EPOCH)
+                                                .unwrap()
+                                                .as_secs();
+                                            let filename = output_dir
+                                                .join(format!("artmate_{}.png", timestamp));
                                             save_frame(
                                                 frame_data,
                                                 filename.to_string_lossy().to_string(),
@@ -584,8 +593,14 @@ where
                                 if let Err(err) = std::fs::create_dir_all(&output_dir) {
                                     eprintln!("Failed to create frames directory: {}", err);
                                 } else {
-                                    let filename = output_dir
-                                        .join(format!("frame_{:04}.png", self.frame_count));
+                                    let timestamp = SystemTime::now()
+                                        .duration_since(UNIX_EPOCH)
+                                        .unwrap()
+                                        .as_secs();
+                                    let filename = output_dir.join(format!(
+                                        "frame_{}_{:04}.png",
+                                        timestamp, self.frame_count
+                                    ));
                                     if let Err(err) = sender.send((
                                         frame_data,
                                         filename.to_string_lossy().to_string(),

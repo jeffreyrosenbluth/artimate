@@ -40,6 +40,7 @@ fn control<Mode>(
     m: i32,
     c: i64,
     f: i64,
+    w: f32,
 ) {
     match control {
         Control::N => app.model.n += n,
@@ -51,7 +52,7 @@ fn control<Mode>(
                 app.model.density = (app.model.density as i32 + m) as u32;
             }
         }
-        Control::StrokeWeight => app.model.stroke_weight += s,
+        Control::StrokeWeight => app.model.stroke_weight += w,
         Control::Color => {
             app.model.color_seed = (app.model.color_seed as i64 + c) as u64;
             app.model.update_grad(app.model.color_seed);
@@ -116,6 +117,7 @@ fn main() -> Result<(), Error> {
             1,    // density
             1,    // color
             1,    // fourier
+            0.1,  // stroke weight
         );
         message(&app.model);
     });
@@ -130,6 +132,7 @@ fn main() -> Result<(), Error> {
             -1,   // density
             -1,   // color
             -1,   // fourier
+            -0.1, // stroke weight
         );
         message(&app.model);
     });
@@ -145,6 +148,7 @@ fn main() -> Result<(), Error> {
             1,    // density
             1,    // color
             1,    // fourier
+            0.05, // stroke weight
         );
         message(&app.model);
     });
@@ -159,6 +163,7 @@ fn main() -> Result<(), Error> {
             -1,    // density
             -1,    // color
             -1,    // fourier
+            -0.05, // stroke weight
         );
         message(&app.model);
     });
@@ -172,8 +177,9 @@ fn main() -> Result<(), Error> {
             0.5,  // scale
             -5.0, // rotate
             1,    // density
-            1,    // color
-            1,    // fourier
+            10,   // color
+            10,   // fourier
+            0.25, // stroke weight
         );
     });
     app.on_key_press(Key::Named(winit::keyboard::NamedKey::ArrowDown), |app| {
@@ -185,8 +191,9 @@ fn main() -> Result<(), Error> {
             -0.5,  // scale
             5.0,   // rotate
             -1,    // density
-            -1,    // color
-            -1,    // fourier
+            -10,   // color
+            -10,   // fourier
+            -0.25, // stroke weight
         );
         message(&app.model);
     });
