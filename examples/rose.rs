@@ -10,24 +10,34 @@ const FOURIER_SEED: u64 = 0;
 
 fn message(model: &Model) {
     println!();
-    println!(" Control Mode  : {:?}", model.control);
-    println!("┌──────────────┬────────────┐");
-    println!("│ n            │ {:<10} │", format!("{:.2}", model.n));
-    println!("│ degrees      │ {:<10} │", format!("{:.1}", model.degrees));
-    println!("├──────────────┼────────────┤");
-    println!("│ color seed   │ {:<10} │", model.color_seed);
-    println!("│ fourier seed │ {:<10} │", model.series_seed);
-    println!("├──────────────┼────────────┤");
-    println!("│ scale        │ {:<10} │", format!("{:.2}", model.scale));
-    println!("│ density      │ {:<10} │", model.density);
-    println!("│ rotate       │ {:<10} │", format!("{:.2}", model.rotate));
+    println!(" Control Mode  :  {:?}", model.control);
+    println!("┌──────────────┬───┬────────────┐");
+    println!("│ n            │ n │ {:<10} │", format!("{:.2}", model.n));
     println!(
-        "│ stroke weight│ {:<10} │",
+        "│ degrees      │ d │ {:<10} │",
+        format!("{:.1}", model.degrees)
+    );
+    println!("├──────────────┼───┼────────────┤");
+    println!("│ color seed   │ c │ {:<10} │", model.color_seed);
+    println!("│ fourier seed │ f │ {:<10} │", model.series_seed);
+    println!("├──────────────┼───┼────────────┤");
+    println!(
+        "│ scale        │ a │ {:<10} │",
+        format!("{:.2}", model.scale)
+    );
+    println!("│ density      │ m │ {:<10} │", model.density);
+    println!(
+        "│ rotate       │ r │ {:<10} │",
+        format!("{:.2}", model.rotate)
+    );
+    println!(
+        "│ stroke weight│ w │ {:<10} │",
         format!("{:.2}", model.stroke_weight)
     );
-    println!("├──────────────┼────────────┤");
-    println!("│ irrational   │ {:<10} │", model.irrational);
-    println!("└──────────────┴────────────┘");
+    println!("├──────────────┼───┼────────────┤");
+    println!("│ irrational   │ i │ {:<10} │", model.irrational);
+    println!("│ maurer       │ h │ {:<10} │", model.maurer);
+    println!("└──────────────┴───┴────────────┘");
 }
 
 fn control<Mode>(
@@ -198,8 +208,8 @@ fn main() -> Result<(), Error> {
         message(&app.model);
     });
 
-    app.on_key_press(Key::Character("1".into()), |app| {
-        app.model.degrees = 1.0;
+    app.on_key_press(Key::Character("h".into()), |app| {
+        app.model.maurer = !app.model.maurer;
         message(&app.model);
     });
     app.on_key_press(Key::Character("i".into()), |app| {
@@ -249,6 +259,8 @@ struct Model {
     series_seed: u64,
     // Control
     control: Control,
+    // Maurer Rose or Rhodonea
+    maurer: bool,
 }
 
 impl Model {
@@ -293,6 +305,7 @@ impl Default for Model {
             color_seed: COLOR_SEED,
             series_seed: FOURIER_SEED,
             control: Control::Degrees,
+            maurer: true,
         }
     }
 }
@@ -441,11 +454,12 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
 
     let mut vertices = vec![];
     let size = app.w_f32() / 2.2;
+    let degrees = if model.maurer { model.degrees } else { 1.0 };
 
     for theta in 0..LINES * model.density {
         let k = theta as f32
             * std::f32::consts::PI
-            * (model.degrees + if model.irrational { 0.01 } else { 0.0 })
+            * (degrees + if model.irrational { 0.01 } else { 0.0 })
             / 180.0;
         let r = size * model.series.eval(model.scale, model.n * k);
         vertices.push(pt(r * k.cos(), r * k.sin()));
