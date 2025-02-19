@@ -11,6 +11,7 @@ const FOURIER_SEED: u64 = 0;
 fn message(model: &Model) {
     println!();
     println!(" Control Mode  :  {:?}", model.control);
+    println!(" Style         :  {:?}", model.style);
     println!("┌──────────────┬───┬────────────┐");
     println!("│ n            │ n │ {:<10} │", format!("{:.2}", model.n));
     println!(
@@ -115,7 +116,15 @@ fn main() -> Result<(), Error> {
         app.model.control = Control::Density;
         println!("Control Mode: Density");
     });
-
+    app.on_key_press(Key::Character("1".into()), |app| {
+        app.model.style = Style::Line;
+    });
+    app.on_key_press(Key::Character("2".into()), |app| {
+        app.model.style = Style::Bezier2;
+    });
+    app.on_key_press(Key::Character("3".into()), |app| {
+        app.model.style = Style::Bezier3;
+    });
     app.on_key_press(Key::Named(winit::keyboard::NamedKey::ArrowRight), |app| {
         control(
             app,
@@ -221,6 +230,13 @@ fn main() -> Result<(), Error> {
 }
 
 #[derive(Copy, Clone, Debug)]
+enum Style {
+    Line,
+    Bezier2,
+    Bezier3,
+}
+
+#[derive(Copy, Clone, Debug)]
 enum Control {
     N,
     Degrees,
@@ -261,6 +277,8 @@ struct Model {
     control: Control,
     // Maurer Rose or Rhodonea
     maurer: bool,
+    // Style
+    style: Style,
 }
 
 impl Model {
@@ -306,6 +324,7 @@ impl Default for Model {
             series_seed: FOURIER_SEED,
             control: Control::Degrees,
             maurer: true,
+            style: Style::Line,
         }
     }
 }
@@ -467,17 +486,51 @@ fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
 
     let trans = Transform::from_rotate_at(model.rotate, 0.0, 0.0);
     trans.map_points(&mut vertices);
-
-    for v in vertices.windows(2) {
-        let t = v[1].mag() / (model.scale * size);
-        let color = model.gradient.get_color(t);
-        Shape::new()
-            .line(v[0], v[1])
-            .no_fill()
-            .stroke_color(color)
-            .stroke_weight(model.stroke_weight)
-            .cartesian(app.config.width, app.config.height)
-            .draw(&mut canvas);
+    match model.style {
+        Style::Line => {
+            for v in vertices.windows(2) {
+                let t = v[1].mag() / (model.scale * size);
+                let color = model.gradient.get_color(t);
+                Shape::new()
+                    .line(v[0], v[1])
+                    .no_fill()
+                    .stroke_color(color)
+                    .stroke_weight(model.stroke_weight)
+                    .cartesian(app.config.width, app.config.height)
+                    .draw(&mut canvas);
+            }
+        }
+        Style::Bezier2 => {
+            let chunks = vertices.windows(3).step_by(2);
+            for chunk in chunks {
+                let t = chunk[2].mag() / (model.scale * size);
+                let color = model.gradient.get_color(t);
+                Shape::new()
+                    .points(chunk)
+                    .quad()
+                    .no_fill()
+                    .stroke_color(color)
+                    .stroke_weight(model.stroke_weight)
+                    .cartesian(app.config.width, app.config.height)
+                    .draw(&mut canvas);
+            }
+        }
+        Style::Bezier3 => {
+            let chunks = vertices.windows(4).step_by(3);
+            for chunk in chunks {
+                let t = chunk[3].mag() / (model.scale * size);
+                let color = model.gradient.get_color(t);
+                Shape::new()
+                    .points(chunk)
+                    .cubic()
+                    .no_fill()
+                    .stroke_color(color)
+                    .stroke_weight(model.stroke_weight)
+                    .cartesian(app.config.width, app.config.height)
+                    .draw(&mut canvas);
+            }
+        }
     }
+
     canvas.take()
 }
