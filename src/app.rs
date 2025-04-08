@@ -436,6 +436,7 @@ where
                 // Handle one-time press events
                 if let Some(handler) = self.key_press_handlers.get(&event.logical_key).cloned() {
                     handler(self);
+                    self.window.as_ref().unwrap().request_redraw();
                 }
             }
             winit::event::ElementState::Released => {
@@ -443,6 +444,7 @@ where
                 // Handle release events
                 if let Some(handler) = self.key_release_handlers.get(&event.logical_key).cloned() {
                     handler(self);
+                    self.window.as_ref().unwrap().request_redraw();
                 }
             }
         }
@@ -451,9 +453,9 @@ where
         if event.state == winit::event::ElementState::Pressed {
             if let Some(handler) = self.key_handlers.get(&event.logical_key).cloned() {
                 handler(self);
+                self.window.as_ref().unwrap().request_redraw();
             }
         }
-        self.window.as_ref().unwrap().request_redraw();
     }
 
     /// Processes mouse input events and triggers appropriate handlers
@@ -464,8 +466,8 @@ where
         let handler = self.mouse_handlers.get(&button).cloned();
         if let Some(handler) = handler {
             handler(self);
+            self.window.as_ref().unwrap().request_redraw();
         }
-        self.window.as_ref().unwrap().request_redraw();
     }
 }
 
