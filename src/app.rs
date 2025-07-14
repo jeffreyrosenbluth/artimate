@@ -6,6 +6,7 @@ use png::Encoder;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::sync::mpsc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use winit::{
@@ -166,9 +167,9 @@ pub struct App<Mode = SketchMode, M = ()> {
     /// Number of frames rendered
     pub frame_count: u32,
     /// Window handle
-    window: Option<Window>,
+    window: Option<Arc<Window>>,
     /// Pixels handle
-    pixels: Option<Pixels>,
+    pixels: Option<Pixels<'static>>,
     /// Current mouse position as (x, y) coordinates
     pub mouse_position: (f32, f32),
     /// Channel for sending frame data to be saved
@@ -479,14 +480,14 @@ where
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let size = LogicalSize::new(self.config.width as f64, self.config.height as f64);
         self.window.get_or_insert_with(|| {
-            event_loop
+            Arc::new(event_loop
                 .create_window(
                     Window::default_attributes()
                         .with_title(self.config.window_title.clone())
                         .with_inner_size(size)
                         .with_min_inner_size(size),
                 )
-                .unwrap()
+                .unwrap())
         });
     }
 
@@ -578,7 +579,7 @@ where
             WindowEvent::RedrawRequested => {
                 self.pixels.get_or_insert_with(|| {
                     let surface_texture =
-                        SurfaceTexture::new(window_size.width, window_size.height, &window);
+                        SurfaceTexture::new(window_size.width, window_size.height, window.clone());
                     Pixels::new(self.config.width, self.config.height, surface_texture).unwrap()
                 });
 
