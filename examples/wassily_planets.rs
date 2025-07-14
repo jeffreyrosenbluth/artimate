@@ -1,3 +1,40 @@
+//! # Wassily Planets Example - Animated Solar System
+//!
+//! This example creates a beautiful animated solar system with gradient planets, stars,
+//! and smooth orbital motion. It demonstrates advanced graphics techniques including
+//! radial gradients, trigonometric animation, and interactive controls.
+//!
+//! ## Features Demonstrated
+//! - Complex stateful animation with `AppMode`
+//! - Radial gradient fills for planets
+//! - Trigonometric motion for orbital animation
+//! - Interactive controls with keyboard and mouse
+//! - Starfield background generation
+//! - Dynamic size and color changes
+//! - Smooth time-based animation
+//!
+//! ## Animation
+//! - Two planets orbit around the center at different speeds
+//! - Planets use radial gradients for realistic appearance
+//! - Stars twinkle in the background
+//! - Smooth, continuous motion using sine and cosine functions
+//!
+//! ## Controls
+//! - **m**: Toggle mouse controls on/off
+//! - **Mouse**: When enabled, mouse position affects planet properties
+//! - **Automatic**: Planets animate automatically with time-based motion
+//!
+//! ## Visual Elements
+//! - Black space background with stars
+//! - Two planets with different gradient color schemes
+//! - Orbital paths that create figure-8 or circular patterns
+//! - Smooth animation at 60 FPS
+//!
+//! ## Usage
+//! ```bash
+//! cargo run --example wassily_planets
+//! ```
+
 use artimate::app::{App, AppMode, Config, Error};
 use wassily::prelude::*;
 use winit::keyboard::Key;

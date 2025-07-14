@@ -1,3 +1,38 @@
+//! # Rose Example - Mathematical Rose Curve Generator
+//!
+//! This example generates beautiful mathematical rose curves (rhodonea) using polar equations.
+//! It demonstrates complex mathematical visualization with interactive controls for exploring
+//! different rose patterns, colors, and styles.
+//!
+//! ## Features Demonstrated
+//! - Complex mathematical curve generation
+//! - Interactive parameter control via keyboard
+//! - Multiple drawing styles and color schemes
+//! - Fourier series approximation
+//! - Real-time parameter adjustment
+//! - Mathematical rose curve variations (regular, maurer, irrational)
+//!
+//! ## Mathematical Background
+//! Rose curves are defined by the polar equation: r = cos(k*θ) or r = sin(k*θ)
+//! - When k is rational (p/q), the rose has p or 2p petals
+//! - When k is irrational, the rose never closes and creates complex patterns
+//! - Maurer roses add an additional rotation parameter for more complexity
+//!
+//! ## Controls
+//! - **n/d**: Adjust n parameter and degrees
+//! - **c/f**: Change color and fourier seeds
+//! - **a/m/r/w**: Adjust scale, density, rotation, stroke weight
+//! - **i/h**: Toggle irrational and maurer modes
+//! - **s**: Cycle through drawing styles
+//! - **space**: Switch control modes
+//! - **enter**: Regenerate with new random parameters
+//! - **p**: Print current parameters
+//!
+//! ## Usage
+//! ```bash
+//! cargo run --example rose
+//! ```
+
 use artimate::app::{App, AppMode, Config, Error};
 use num_complex::Complex;
 use std::ops::{Add, Mul};

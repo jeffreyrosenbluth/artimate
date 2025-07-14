@@ -1,3 +1,32 @@
+//! # Flag Example - Animated Noise Grid
+//!
+//! This example creates a mesmerizing animated grid of white circles that move using
+//! periodic noise, creating a flag-like waving effect. The animation uses 4D noise
+//! to create smooth, organic movement patterns.
+//!
+//! ## Features Demonstrated
+//! - Using `AppMode` for stateful applications with custom models
+//! - Keyboard input handling for interactive controls
+//! - 4D noise for smooth periodic animation
+//! - Grid-based drawing patterns
+//! - Time-based animation with frame counting
+//! - Advanced noise techniques (ridged multifractal)
+//!
+//! ## Controls
+//! - **1-8 keys**: Adjust noise octaves (higher numbers = more detail)
+//! - The pattern becomes more complex with higher octave values
+//!
+//! ## Animation
+//! - 75x75 grid of white circles on black background
+//! - Each circle moves based on 4D noise (x, y, time_cos, time_sin)
+//! - Periodic noise creates seamless looping animation
+//! - Movement appears like a flag waving in the wind
+//!
+//! ## Usage
+//! ```bash
+//! cargo run --example flag
+//! ```
+
 // Import required libraries for graphics, app management and input handling
 use artimate::app::{App, AppMode, Config, Error};
 use wassily::prelude::*;

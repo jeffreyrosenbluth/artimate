@@ -1,3 +1,41 @@
+//! # Hilbert Swerve Example - Animated Hilbert Curve with Noise
+//!
+//! This example creates a mesmerizing animated Hilbert curve that "swerves" using Perlin noise.
+//! It demonstrates the combination of mathematical space-filling curves with organic noise
+//! patterns to create dynamic, flowing animations.
+//!
+//! ## Features Demonstrated
+//! - Hilbert curve generation (space-filling curve)
+//! - Perlin noise for organic movement
+//! - Time-based animation with smooth motion
+//! - Mathematical curve visualization
+//! - Complex path rendering with smooth lines
+//! - Real-time curve deformation
+//!
+//! ## Mathematical Background
+//! The Hilbert curve is a space-filling curve that visits every point in a square grid
+//! exactly once. This example:
+//! - Generates a 7th-order Hilbert curve (128x128 points)
+//! - Applies Perlin noise to each point for organic movement
+//! - Animates the noise over time to create flowing motion
+//!
+//! ## Animation
+//! - The curve continuously deforms using time-based noise
+//! - Each point on the curve moves according to its noise value
+//! - Creates a flowing, organic motion while maintaining curve structure
+//! - Smooth animation with no sudden jumps or discontinuities
+//!
+//! ## Visual Elements
+//! - White curve on black background
+//! - Smooth, continuous lines connecting all points
+//! - Organic, flowing movement that never repeats exactly
+//! - Maintains the general structure of the Hilbert curve
+//!
+//! ## Usage
+//! ```bash
+//! cargo run --example hilbert_swerve
+//! ```
+
 use artimate::app::{App, AppMode, Config, Error};
 use wassily::prelude::*;
 

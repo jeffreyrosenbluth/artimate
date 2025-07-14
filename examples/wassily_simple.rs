@@ -1,3 +1,25 @@
+//! # Simple Moving Ball Example
+//!
+//! This example demonstrates the basics of creating a simple animated sketch with Artimate.
+//! It shows a blue circle with an orange border moving horizontally across the screen.
+//!
+//! ## Features Demonstrated
+//! - Using `SketchMode` for simple animations
+//! - Time-based animation (`app.time`)
+//! - Integration with the `wassily` graphics library
+//! - Drawing shapes with fills and strokes
+//! - Using default configuration settings
+//!
+//! ## Animation
+//! - The ball moves continuously from left to right
+//! - When it reaches the right edge, it wraps around to the left
+//! - The movement is smooth and time-based
+//!
+//! ## Usage
+//! ```bash
+//! cargo run --example wassily_simple
+//! ```
+
 use artimate::app::{App, Config, Error};
 use wassily::prelude::*;
 

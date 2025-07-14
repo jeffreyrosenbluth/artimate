@@ -1,3 +1,34 @@
+//! # Tiny-Skia Integration Example
+//!
+//! This example demonstrates how to integrate Artimate with the `tiny-skia` 2D graphics library.
+//! It shows how to use tiny-skia's advanced rendering capabilities within Artimate's framework
+//! to create complex vector graphics with anti-aliasing, gradients, and path operations.
+//!
+//! ## Features Demonstrated
+//! - Integration with `tiny-skia` 2D graphics library
+//! - Anti-aliased vector graphics rendering
+//! - Multiple paint objects with different colors and alpha values
+//! - Path creation and manipulation
+//! - Gradient fills and complex shapes
+//! - Converting tiny-skia pixmaps to Artimate's pixel format
+//!
+//! ## Graphics Rendered
+//! - Various colored shapes with anti-aliasing
+//! - Overlapping elements with transparency
+//! - Complex vector paths
+//! - Gradient fills and effects
+//!
+//! ## Integration Pattern
+//! This example shows the standard pattern for integrating external 2D graphics libraries:
+//! 1. Create a tiny-skia Pixmap with the same dimensions as the Artimate canvas
+//! 2. Draw using tiny-skia's API
+//! 3. Convert the pixmap data to RGBA format for Artimate
+//!
+//! ## Usage
+//! ```bash
+//! cargo run --example tinyskia
+//! ```
+
 use artimate::app::{App, Config, Error, SketchMode};
 use tiny_skia::*;
 

@@ -1,3 +1,42 @@
+//! # Noise Loop Example - Seamless Noise Animation
+//!
+//! This example demonstrates creating seamless looping animations using 3D noise.
+//! It generates a grid of values that smoothly transitions from the last frame back
+//! to the first frame, creating a perfect loop suitable for GIF creation.
+//!
+//! ## Features Demonstrated
+//! - Seamless looping animation using 3D noise
+//! - Frame saving for GIF creation (saves first 50 frames)
+//! - 3D noise sampling with circular time parameter
+//! - Grayscale image generation from noise values
+//! - Integration with `tiny-skia` for rendering
+//! - Mathematical mapping functions for value conversion
+//!
+//! ## Technical Details
+//! The seamless loop is achieved by:
+//! - Using 3D noise with (x, y, time) parameters
+//! - Mapping time to a circle using cos() and sin() functions
+//! - This ensures the noise values at frame 0 match frame N
+//! - Creating a perfect loop with no visible seam
+//!
+//! ## Animation
+//! - Smooth, organic noise patterns that flow continuously
+//! - Each pixel's brightness determined by 3D noise value
+//! - Perfect loop that can be played repeatedly
+//! - 50 frames saved automatically as PNG files
+//!
+//! ## File Output
+//! The example saves the first 50 frames as PNG files in Downloads/frames/
+//! These can be combined into a GIF using external tools.
+//!
+//! ## Usage
+//! ```bash
+//! cargo run --example noise_loop
+//! ```
+//!
+//! The application will automatically save frames and can be used to create
+//! seamless looping animations.
+
 use artimate::app::{App, AppMode, Config, Error};
 use noise::{NoiseFn, Value};
 use tiny_skia::*;
