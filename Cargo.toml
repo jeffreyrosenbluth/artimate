@@ -2,14 +2,21 @@
 name = "artimate"
 version = "0.1.0"
 edition = "2021"
+description = "A simple, pixel-based graphics framework for creative coding and generative art"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jeffreyrosenbluth/artimate"
+documentation = "https://docs.rs/artimate"
+readme = "README.md"
+keywords = ["graphics", "creative-coding", "generative-art", "pixel-graphics", "animation"]
+categories = ["graphics", "multimedia", "game-development", "visualization"]
+authors = ["Jeffrey Rosenbluth <jeffrey.rosenbluth@gmail.com>"]
 
 [dependencies]
 delegate = "0.13.3"
 dirs = "6.0"
-num-complex = "0.4.6"
 pixels = "0.15.0"
 png = "0.17.16"
-winit = {version = "0.30.11", features = ["rwh_05"]}
+winit = { version = "0.30.11", features = ["rwh_05"] }
 
 [dev-dependencies]
 tiny-skia = "0.11.4"

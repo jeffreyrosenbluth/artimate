@@ -143,14 +143,72 @@ impl Default for Config {
 }
 
 /// Marker type for simple sketches that only need drawing functionality
+/// 
+/// Used with `App::sketch()` to create applications that don't need persistent state.
+/// Perfect for static graphics, simple animations, or interactive graphics that only
+/// depend on time and mouse position.
 pub struct SketchMode;
+
 /// Marker type for stateful sketches that need both model state and update functionality
+/// 
+/// Used with `App::app()` to create applications that maintain state between frames.
+/// The model is updated each frame via an update function, allowing for complex
+/// animations and interactive applications.
 pub struct AppMode;
 
 /// Main application struct that handles window management and rendering
 ///
+/// Artimate provides a simple framework for creating pixel-based graphics applications.
+/// The `App` struct manages the window lifecycle, input handling, and rendering pipeline.
+///
 /// # Type Parameters
+/// * `Mode` - The application mode, either `SketchMode` for simple sketches or `AppMode` for stateful applications
 /// * `M` - The type of the model/state used in the application
+/// 
+/// # Examples
+/// 
+/// ## Simple Sketch
+/// ```rust,no_run
+/// use artimate::app::{App, Config, Error};
+/// 
+/// fn main() -> Result<(), Error> {
+///     let config = Config::with_dims(800, 600);
+///     let mut app = App::sketch(config, draw);
+///     app.run()
+/// }
+/// 
+/// fn draw(app: &App, _model: &()) -> Vec<u8> {
+///     // Return RGBA pixel data
+///     vec![255; (app.config.width * app.config.height * 4) as usize]
+/// }
+/// ```
+/// 
+/// ## Stateful Application
+/// ```rust,no_run
+/// use artimate::app::{App, AppMode, Config, Error};
+/// 
+/// #[derive(Default, Clone)]
+/// struct Model {
+///     counter: i32,
+/// }
+/// 
+/// fn main() -> Result<(), Error> {
+///     let config = Config::with_dims(800, 600);
+///     let model = Model::default();
+///     let mut app = App::app(model, config, update, draw);
+///     app.run()
+/// }
+/// 
+/// fn update(app: &App<AppMode, Model>, mut model: Model) -> Model {
+///     model.counter += 1;
+///     model
+/// }
+/// 
+/// fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
+///     // Return RGBA pixel data based on model state
+///     vec![255; (app.config.width * app.config.height * 4) as usize]
+/// }
+/// ```
 pub struct App<Mode = SketchMode, M = ()> {
     /// The application's model/state
     pub model: M,
@@ -223,7 +281,33 @@ fn save_frame(
 
 /// Simple sketches that only need drawing functionality
 impl App<SketchMode> {
-    /// Creates a simple sketch with just a draw function and config
+    /// Creates a simple sketch application with just a draw function and configuration
+    /// 
+    /// This is the simplest way to create an Artimate application. It's perfect for
+    /// static graphics, animations that don't need persistent state, or simple
+    /// interactive graphics that only depend on time and mouse position.
+    ///
+    /// # Arguments
+    /// * `config` - Configuration settings for the window and rendering
+    /// * `draw` - Function called each frame to generate RGBA pixel data
+    ///
+    /// # Examples
+    /// ```rust,no_run
+    /// use artimate::app::{App, Config, Error};
+    /// 
+    /// fn main() -> Result<(), Error> {
+    ///     let config = Config::with_dims(400, 400);
+    ///     let mut app = App::sketch(config, draw);
+    ///     app.run()
+    /// }
+    /// 
+    /// fn draw(app: &App, _model: &()) -> Vec<u8> {
+    ///     // Create a simple animated circle
+    ///     let mut pixels = vec![0u8; (app.config.width * app.config.height * 4) as usize];
+    ///     // Fill with pixel data...
+    ///     pixels
+    /// }
+    /// ```
     pub fn sketch(config: Config, draw: fn(&App<SketchMode, ()>, &()) -> Vec<u8>) -> Self {
         let maybe_tx = if config.frames_to_save > 0 {
             setup_frame_sender()
@@ -259,13 +343,50 @@ impl<M> App<AppMode, M>
 where
     M: Clone,
 {
-    /// Creates a new application instance
+    /// Creates a stateful application with model, update, and draw functions
+    ///
+    /// This method creates a full-featured application that can maintain state
+    /// between frames. The model is updated each frame via the update function,
+    /// and the draw function generates pixel data based on the current model state.
     ///
     /// # Arguments
     /// * `model` - Initial state of the application
-    /// * `config` - Configuration settings
-    /// * `update` - Function called each frame to update the model
-    /// * `draw` - Function called each frame to generate pixel data
+    /// * `config` - Configuration settings for the window and rendering
+    /// * `update` - Function called each frame to update the model based on app state
+    /// * `draw` - Function called each frame to generate RGBA pixel data from the model
+    ///
+    /// # Examples
+    /// ```rust,no_run
+    /// use artimate::app::{App, AppMode, Config, Error};
+    /// 
+    /// #[derive(Clone)]
+    /// struct Model {
+    ///     position: f32,
+    ///     direction: f32,
+    /// }
+    /// 
+    /// fn main() -> Result<(), Error> {
+    ///     let config = Config::with_dims(800, 600);
+    ///     let model = Model { position: 0.0, direction: 1.0 };
+    ///     let mut app = App::app(model, config, update, draw);
+    ///     app.run()
+    /// }
+    /// 
+    /// fn update(app: &App<AppMode, Model>, mut model: Model) -> Model {
+    ///     model.position += model.direction * 100.0 * (1.0 / 60.0); // 60 FPS
+    ///     if model.position > app.config.width as f32 {
+    ///         model.direction = -1.0;
+    ///     } else if model.position < 0.0 {
+    ///         model.direction = 1.0;
+    ///     }
+    ///     model
+    /// }
+    /// 
+    /// fn draw(app: &App<AppMode, Model>, model: &Model) -> Vec<u8> {
+    ///     // Generate pixel data based on model
+    ///     vec![255; (app.config.width * app.config.height * 4) as usize]
+    /// }
+    /// ```
     pub fn app(
         model: M,
         config: Config,
@@ -306,9 +427,33 @@ impl<Mode, M> App<Mode, M>
 where
     M: Clone,
 {
-    /// Starts the application's main loop
+    /// Starts the application's main loop and runs until the window is closed
     ///
-    /// Returns an error if the window creation or rendering fails
+    /// This method creates the window, initializes the rendering context, and begins
+    /// the main event loop. It handles window events, updates the model (if in AppMode),
+    /// calls the draw function, and renders the result to the screen.
+    ///
+    /// The method will block until the application is closed and will print performance
+    /// statistics (FPS, frame count, elapsed time) when the application exits.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If the application ran successfully and was closed normally
+    /// * `Err(Error)` - If there was an error during window creation or rendering
+    ///
+    /// # Examples
+    /// ```rust,no_run
+    /// use artimate::app::{App, Config, Error};
+    /// 
+    /// fn main() -> Result<(), Error> {
+    ///     let config = Config::with_dims(800, 600);
+    ///     let mut app = App::sketch(config, draw);
+    ///     app.run() // Blocks until window is closed
+    /// }
+    /// 
+    /// fn draw(app: &App, _model: &()) -> Vec<u8> {
+    ///     vec![255; (app.config.width * app.config.height * 4) as usize]
+    /// }
+    /// ```
     pub fn run(&mut self) -> Result<(), Error> {
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Poll);
@@ -326,12 +471,18 @@ where
         res.map_err(|e| Error::UserDefined(Box::new(e)))
     }
 
-    /// Returns the current x-coordinate of the mouse
+    /// Returns the current x-coordinate of the mouse cursor in pixels
+    ///
+    /// The coordinate is relative to the top-left corner of the window,
+    /// with positive values extending to the right.
     pub fn mouse_x(&self) -> f32 {
         self.mouse_position.0
     }
 
-    /// Returns the current y-coordinate of the mouse
+    /// Returns the current y-coordinate of the mouse cursor in pixels
+    ///
+    /// The coordinate is relative to the top-left corner of the window,
+    /// with positive values extending downward.
     pub fn mouse_y(&self) -> f32 {
         self.mouse_position.1
     }
@@ -345,21 +496,33 @@ where
         }
     }
 
+    /// Sets the number of frames to save as PNG files and returns updated app
+    /// 
+    /// Frames are saved to the Downloads/frames directory with timestamps.
+    /// Set to 0 to disable frame saving.
     pub fn set_frames_to_save(mut self, frames_to_save: u32) -> Self {
         self.config = self.config.set_frames_to_save(frames_to_save);
         self
     }
 
+    /// Sets cursor visibility in the window and returns updated app
     pub fn set_cursor_visibility(mut self, cursor_visible: bool) -> Self {
         self.config = self.config.set_cursor_visibility(cursor_visible);
         self
     }
 
+    /// Configures the app to render only one frame and returns updated app
+    /// 
+    /// Useful for generating static images or when you want to control
+    /// the animation loop manually.
     pub fn no_loop(mut self) -> Self {
         self.config = self.config.no_loop();
         self
     }
 
+    /// Sets the maximum number of frames to render and returns updated app
+    /// 
+    /// The application will exit after rendering this many frames.
     pub fn set_frames(mut self, frames: u32) -> Self {
         self.config = self.config.set_frames(frames);
         self
