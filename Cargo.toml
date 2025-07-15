@@ -12,7 +12,7 @@ categories = ["graphics", "multimedia", "game-development", "visualization"]
 authors = ["Jeffrey Rosenbluth <jeffrey.rosenbluth@gmail.com>"]
 
 [dependencies]
-delegate = "0.13.3"
+delegate = "0.13.4"
 dirs = "6.0"
 pixels = "0.15.0"
 png = "0.17.16"
@@ -20,6 +20,6 @@ winit = { version = "0.30.11", features = ["rwh_05"] }
 
 [dev-dependencies]
 tiny-skia = "0.11.4"
-wassily = { git = "https://github.com/jeffreyrosenbluth/wassily" }
+wassily = "0.2.0"
 noise = "0.9.0"
 num-complex = "0.4.6"

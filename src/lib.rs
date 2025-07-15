@@ -5,10 +5,9 @@
 //! applications that render directly to a pixel buffer, making it ideal for:
 //!
 //! - Generative art and creative coding
-//! - Pixel-based games and simulations  
+//! - Small pixel-based games and simulations  
 //! - Interactive animations
 //! - Algorithm visualizations
-//! - Educational graphics programming
 //!
 //! ## Features
 //!
